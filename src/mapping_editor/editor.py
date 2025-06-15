@@ -13,8 +13,6 @@ from utils import (
 )
 from .tooltip import ToolTip
 from .pattern_builder import PatternBuilder
-#from .tooltip import ToolTip
-#from .pattern_builder import PatternBuilder
 
 class MappingEditor(tk.Toplevel):
     """
@@ -68,10 +66,19 @@ class MappingEditor(tk.Toplevel):
         new_btn.pack(side="left", padx=5)
         ToolTip(new_btn, "Start a new, empty mapping.")
 
-        # Mapping entries list
-        self.tree = ttk.Treeview(self, columns=("Pattern", "Folder"), show="headings", selectmode="browse")
+        # Mapping entries list with row numbers
+        self.tree = ttk.Treeview(
+            self,
+            columns=("No", "Pattern", "Folder"),
+            show="headings",
+            selectmode="browse"
+        )
+        self.tree.heading("No", text="#")
         self.tree.heading("Pattern", text="Pattern")
         self.tree.heading("Folder", text="Destination Folder")
+        self.tree.column("No", width=50, minwidth=30, anchor="center")  # Set default width here
+        self.tree.column("Pattern", width=200)
+        self.tree.column("Folder", width=200)
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
         self.tree.bind("<Double-1>", self._edit_entry)
         ToolTip(self.tree, "Double-click an entry to edit it.")
@@ -132,9 +139,12 @@ class MappingEditor(tk.Toplevel):
         ToolTip(help_btn, "Show help for the mapping editor.")
 
     def _refresh_tree(self):
+        """
+        Refresh the mapping entries displayed in the treeview, with row numbers.
+        """
         self.tree.delete(*self.tree.get_children())
-        for pattern, folder in self.mapping.items():
-            self.tree.insert("", "end", values=(pattern, folder))
+        for idx, (pattern, folder) in enumerate(self.mapping.items(), start=1):
+            self.tree.insert("", "end", values=(idx, pattern, folder))
 
     def _open_mapping(self):
         folder = get_mappings_folder()
@@ -191,7 +201,8 @@ class MappingEditor(tk.Toplevel):
 
         selected = self.tree.selection()
         if selected:
-            old_pattern = self.tree.item(selected[0])['values'][0]
+            # Get the old pattern using the second column (Pattern)
+            old_pattern = self.tree.item(selected[0])['values'][1]
             if old_pattern == pattern:
                 self.mapping[pattern] = folder
             else:
@@ -214,7 +225,8 @@ class MappingEditor(tk.Toplevel):
         selected = self.tree.selection()
         if not selected:
             return
-        pattern = self.tree.item(selected[0])['values'][0]
+        # Use the second column (Pattern) for the key
+        pattern = self.tree.item(selected[0])['values'][1]
         if pattern in self.mapping:
             del self.mapping[pattern]
             self._refresh_tree()
@@ -223,7 +235,8 @@ class MappingEditor(tk.Toplevel):
         selected = self.tree.selection()
         if not selected:
             return
-        pattern, folder = self.tree.item(selected[0])['values']
+        # Use the second and third columns for pattern and folder
+        _, pattern, folder = self.tree.item(selected[0])['values']
         self.pattern_entry.delete(0, tk.END)
         self.pattern_entry.insert(0, pattern)
         self.folder_entry.delete(0, tk.END)
@@ -269,7 +282,9 @@ class MappingEditor(tk.Toplevel):
             return
         new_order = []
         for item in self.tree.get_children():
-            pattern, folder = self.tree.item(item)['values']
+            # Use the second and third columns for pattern and folder
+            _, pattern, folder = self.tree.item(item)['values']
             new_order.append((pattern, folder))
         self.mapping = OrderedDict(new_order)
-        self._dragging_item = None
+        self._refresh_tree()
+        self._dragging_item
