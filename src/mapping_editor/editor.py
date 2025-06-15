@@ -1,17 +1,13 @@
-import os
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import fnmatch
 from collections import OrderedDict
 
 from utils import (
-    get_mappings_folder,
+    MappingUtils,
     show_error,
-    validate_mapping,
-    save_json_file,
-    load_json_file,
+    ToolTip
 )
-from .tooltip import ToolTip
 from .pattern_builder import PatternBuilder
 
 class MappingEditor(tk.Toplevel):
@@ -76,18 +72,21 @@ class MappingEditor(tk.Toplevel):
         self.tree.heading("No", text="#")
         self.tree.heading("Pattern", text="Pattern")
         self.tree.heading("Folder", text="Destination Folder")
-        self.tree.column("No", width=50, minwidth=30, anchor="center")  # Set default width here
-        self.tree.column("Pattern", width=200)
-        self.tree.column("Folder", width=200)
+        self.tree.column("No", width=50, minwidth=30, anchor="center", stretch=False)
+        self.tree.column("Pattern", width=200, stretch=True)
+        self.tree.column("Folder", width=200, stretch=True)
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
         self.tree.bind("<Double-1>", self._edit_entry)
         ToolTip(self.tree, "Double-click an entry to edit it.")
 
-        # Enable drag and drop reordering
+        # Enable drag and drop reordering (without interfering with selection)
         self.tree.bind("<ButtonPress-1>", self._on_tree_press)
         self.tree.bind("<B1-Motion>", self._on_tree_motion)
         self.tree.bind("<ButtonRelease-1>", self._on_tree_release)
         self._dragging_item = None
+        self._drag_start_y = None
+        self._drag_threshold = 5  # pixels
+        self._dragging = False
 
         # Entry controls
         entry_frame = ttk.Frame(self)
@@ -147,7 +146,7 @@ class MappingEditor(tk.Toplevel):
             self.tree.insert("", "end", values=(idx, pattern, folder))
 
     def _open_mapping(self):
-        folder = get_mappings_folder()
+        folder = MappingUtils.get_mappings_folder()
         path = filedialog.askopenfilename(
             initialdir=folder,
             title="Open Mapping File",
@@ -155,18 +154,18 @@ class MappingEditor(tk.Toplevel):
         )
         if path:
             try:
-                self.mapping = OrderedDict(load_json_file(path))
+                self.mapping = OrderedDict(MappingUtils.load_json_file(path))
                 self.mapping_path = path
                 self._refresh_tree()
             except Exception as e:
                 show_error(f"Failed to load mapping: {e}")
 
     def _save_mapping(self):
-        if not validate_mapping(self.mapping):
+        if not MappingUtils.validate_mapping(self.mapping):
             show_error("Invalid mapping: Patterns and folders must be non-empty.")
             return
         if not self.mapping_path:
-            folder = get_mappings_folder()
+            folder = MappingUtils.get_mappings_folder()
             path = filedialog.asksaveasfilename(
                 initialdir=folder,
                 title="Save Mapping File",
@@ -177,7 +176,7 @@ class MappingEditor(tk.Toplevel):
                 return
             self.mapping_path = path
         try:
-            save_json_file(self.mapping_path, dict(self.mapping))
+            MappingUtils.save_json_file(self.mapping_path, dict(self.mapping))
             messagebox.showinfo("Saved", "Mapping saved successfully.")
             if self.on_save_callback:
                 self.on_save_callback()
@@ -190,15 +189,12 @@ class MappingEditor(tk.Toplevel):
         self._refresh_tree()
 
     def _add_or_update_entry(self):
-        """
-        Add a new mapping entry or update the selected one, preserving order.
-        """
         pattern = self.pattern_entry.get().strip()
         folder = self.folder_entry.get().strip()
         if not pattern or not folder:
             show_error("Pattern and folder cannot be empty.")
             return
-
+    
         selected = self.tree.selection()
         if selected:
             # Get the old pattern using the second column (Pattern)
@@ -216,7 +212,7 @@ class MappingEditor(tk.Toplevel):
                 self.mapping = OrderedDict(new_items)
         else:
             self.mapping[pattern] = folder
-
+    
         self._refresh_tree()
         self.pattern_entry.delete(0, tk.END)
         self.folder_entry.delete(0, tk.END)
@@ -225,7 +221,6 @@ class MappingEditor(tk.Toplevel):
         selected = self.tree.selection()
         if not selected:
             return
-        # Use the second column (Pattern) for the key
         pattern = self.tree.item(selected[0])['values'][1]
         if pattern in self.mapping:
             del self.mapping[pattern]
@@ -261,30 +256,47 @@ class MappingEditor(tk.Toplevel):
 
     # Drag and drop reordering
     def _on_tree_press(self, event):
+        # Record the item and y position being pressed, but do not interfere with selection
         item = self.tree.identify_row(event.y)
         if item:
             self._dragging_item = item
+            self._drag_start_y = event.y
+            self._dragging = False
         else:
             self._dragging_item = None
+            self._drag_start_y = None
+            self._dragging = False
+        # Do NOT return "break" here; allow normal selection
 
     def _on_tree_motion(self, event):
-        if not self._dragging_item:
+        if not self._dragging_item or self._drag_start_y is None:
             return
+        # Only start drag if mouse moved more than threshold
+        if not self._dragging and abs(event.y - self._drag_start_y) < self._drag_threshold:
+            return
+        self._dragging = True
         target = self.tree.identify_row(event.y)
         if target and target != self._dragging_item:
             idx_drag = self.tree.index(self._dragging_item)
             idx_target = self.tree.index(target)
             self.tree.move(self._dragging_item, '', idx_target)
             self._dragging_item = self.tree.get_children()[idx_target]
+            self._drag_start_y = event.y  # Update for smoother dragging
 
     def _on_tree_release(self, event):
-        if self._dragging_item is None:
+        if self._dragging_item is None or not self._dragging:
+            # Not a drag, just a click: allow normal selection/editing
+            self._dragging_item = None
+            self._drag_start_y = None
+            self._dragging = False
             return
+        # If it was a drag, update the mapping order
         new_order = []
         for item in self.tree.get_children():
-            # Use the second and third columns for pattern and folder
             _, pattern, folder = self.tree.item(item)['values']
             new_order.append((pattern, folder))
         self.mapping = OrderedDict(new_order)
         self._refresh_tree()
-        self._dragging_item
+        self._dragging_item = None
+        self._drag_start_y = None
+        self._dragging = False

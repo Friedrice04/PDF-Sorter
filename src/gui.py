@@ -5,43 +5,10 @@ from tkinter import filedialog, messagebox, ttk
 from sorter import FileSorter
 from mapping_editor import MappingEditor
 from utils import (
-    get_mappings_folder,
-    list_mapping_files,
+    MappingUtils,
     show_error,
+    ToolTip
 )
-
-class ToolTip:
-    """
-    Create a tooltip for a given widget.
-    """
-    def __init__(self, widget, text):
-        self.widget = widget
-        self.text = text
-        self.tipwindow = None
-        widget.bind("<Enter>", self.show_tip)
-        widget.bind("<Leave>", self.hide_tip)
-
-    def show_tip(self, event=None):
-        if self.tipwindow or not self.text:
-            return
-        x, y, cx, cy = self.widget.bbox("insert") if self.widget.winfo_ismapped() else (0, 0, 0, 0)
-        x = x + self.widget.winfo_rootx() + 25
-        y = y + self.widget.winfo_rooty() + 20
-        self.tipwindow = tw = tk.Toplevel(self.widget)
-        tw.wm_overrideredirect(True)
-        tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(
-            tw, text=self.text, justify=tk.LEFT,
-            background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-            font=("tahoma", "8", "normal")
-        )
-        label.pack(ipadx=1)
-
-    def hide_tip(self, event=None):
-        tw = self.tipwindow
-        self.tipwindow = None
-        if tw:
-            tw.destroy()
 
 class FileSorterGUI:
     """
@@ -141,8 +108,8 @@ class FileSorterGUI:
         """
         Populate the mapping combobox with available mapping files.
         """
-        mappings_folder = get_mappings_folder()
-        mapping_files = list_mapping_files(mappings_folder)
+        mappings_folder = MappingUtils.get_mappings_folder()
+        mapping_files = MappingUtils.list_mapping_files(mappings_folder)
         self.mapping_combo['values'] = mapping_files
         if mapping_files:
             self.mapping_combo.current(0)
@@ -154,7 +121,7 @@ class FileSorterGUI:
         """
         selected = self.mapping_combo.get()
         if selected:
-            self.mapping_path = os.path.join(get_mappings_folder(), selected)
+            self.mapping_path = os.path.join(MappingUtils.get_mappings_folder(), selected)
 
     def _browse_directory(self):
         """
