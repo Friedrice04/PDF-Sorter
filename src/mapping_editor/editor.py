@@ -10,6 +10,26 @@ from utils import (
 )
 from .pattern_builder import PatternBuilder
 
+def labeled_entry(parent, label_text, var=None, **entry_kwargs):
+    """
+    Create a frame with a label and an entry.
+    Returns (frame, entry).
+    """
+    frame = ttk.Frame(parent)
+    label = ttk.Label(frame, text=label_text)
+    label.pack(side="left")
+    entry = ttk.Entry(frame, textvariable=var, **entry_kwargs)
+    entry.pack(side="left", padx=5)
+    return frame, entry
+
+def button_with_tooltip(parent, text, command, tooltip_text):
+    """
+    Create a button with a tooltip.
+    """
+    btn = ttk.Button(parent, text=text, command=command)
+    ToolTip(btn, tooltip_text)
+    return btn
+
 class MappingEditor(tk.Toplevel):
     """
     GUI window for creating and editing mapping files.
@@ -46,23 +66,20 @@ class MappingEditor(tk.Toplevel):
         messagebox.showinfo("Help - Mapping Editor", message)
 
     def _build_widgets(self):
-        # Mapping file controls
+        # --- Mapping file controls ---
         file_frame = ttk.Frame(self)
         file_frame.pack(fill="x", padx=10, pady=5)
 
-        open_btn = ttk.Button(file_frame, text="Open Mapping", command=self._open_mapping)
+        open_btn = button_with_tooltip(file_frame, "Open Mapping", self._open_mapping, "Open an existing mapping file.")
         open_btn.pack(side="left", padx=5)
-        ToolTip(open_btn, "Open an existing mapping file.")
 
-        save_btn = ttk.Button(file_frame, text="Save Mapping", command=self._save_mapping)
+        save_btn = button_with_tooltip(file_frame, "Save Mapping", self._save_mapping, "Save the current mapping to a file.")
         save_btn.pack(side="left", padx=5)
-        ToolTip(save_btn, "Save the current mapping to a file.")
 
-        new_btn = ttk.Button(file_frame, text="New Mapping", command=self._new_mapping)
+        new_btn = button_with_tooltip(file_frame, "New Mapping", self._new_mapping, "Start a new, empty mapping.")
         new_btn.pack(side="left", padx=5)
-        ToolTip(new_btn, "Start a new, empty mapping.")
 
-        # Mapping entries list with row numbers
+        # --- Mapping entries list with row numbers ---
         self.tree = ttk.Treeview(
             self,
             columns=("No", "Pattern", "Folder"),
@@ -88,33 +105,29 @@ class MappingEditor(tk.Toplevel):
         self._drag_threshold = 5  # pixels
         self._dragging = False
 
-        # Entry controls
+        # --- Entry controls ---
         entry_frame = ttk.Frame(self)
         entry_frame.pack(fill="x", padx=10, pady=5)
 
-        ttk.Label(entry_frame, text="Pattern:").pack(side="left")
-        self.pattern_entry = ttk.Entry(entry_frame, width=20)
-        self.pattern_entry.pack(side="left", padx=5)
+        self.pattern_var = tk.StringVar()
+        pattern_frame, self.pattern_entry = labeled_entry(entry_frame, "Pattern:", self.pattern_var, width=20)
+        pattern_frame.pack(side="left")
         ToolTip(self.pattern_entry, "Enter a filename pattern (wildcards allowed).")
 
-        pb_btn = ttk.Button(entry_frame, text="Pattern Builder", command=self._open_pattern_builder)
+        pb_btn = button_with_tooltip(entry_frame, "Pattern Builder", self._open_pattern_builder, "Open a simple tool to build a pattern without wildcards.")
         pb_btn.pack(side="left", padx=5)
-        ToolTip(pb_btn, "Open a simple tool to build a pattern without wildcards.")
 
-        ttk.Label(entry_frame, text="Folder:").pack(side="left")
-        self.folder_entry = ttk.Entry(entry_frame, width=20)
-        self.folder_entry.pack(side="left", padx=5)
+        self.folder_var = tk.StringVar()
+        folder_frame, self.folder_entry = labeled_entry(entry_frame, "Folder:", self.folder_var, width=20)
+        folder_frame.pack(side="left")
         ToolTip(self.folder_entry, "Enter the destination folder for this pattern.")
 
-        add_btn = ttk.Button(entry_frame, text="Add/Update", command=self._add_or_update_entry)
+        add_btn = button_with_tooltip(entry_frame, "Add/Update", self._add_or_update_entry, "Add a new mapping entry or update the selected one.")
         add_btn.pack(side="left", padx=5)
-        ToolTip(add_btn, "Add a new mapping entry or update the selected one.")
-
-        del_btn = ttk.Button(entry_frame, text="Delete", command=self._delete_entry)
+        del_btn = button_with_tooltip(entry_frame, "Delete", self._delete_entry, "Delete the selected mapping entry.")
         del_btn.pack(side="left", padx=5)
-        ToolTip(del_btn, "Delete the selected mapping entry.")
 
-        # Pattern test controls
+        # --- Pattern test controls ---
         test_frame = ttk.Frame(self)
         test_frame.pack(fill="x", padx=10, pady=5)
         ttk.Label(test_frame, text="Test Filename:").pack(side="left")
@@ -122,20 +135,18 @@ class MappingEditor(tk.Toplevel):
         self.test_entry.pack(side="left", padx=5)
         ToolTip(self.test_entry, "Enter a filename to test against the pattern.")
 
-        test_btn = ttk.Button(test_frame, text="Test Pattern", command=self._test_pattern)
+        test_btn = button_with_tooltip(test_frame, "Test Pattern", self._test_pattern, "Test if the pattern matches the filename.")
         test_btn.pack(side="left", padx=5)
-        ToolTip(test_btn, "Test if the pattern matches the filename.")
 
         self.test_result = ttk.Label(test_frame, text="")
         self.test_result.pack(side="left", padx=5)
         ToolTip(self.test_result, "Shows if the pattern matches the test filename.")
 
-        # Help button in bottom right
+        # --- Help button in bottom right ---
         help_frame = ttk.Frame(self)
         help_frame.pack(fill="both", expand=False, padx=10, pady=5)
-        help_btn = ttk.Button(help_frame, text="Help", command=self._show_help)
+        help_btn = button_with_tooltip(help_frame, "Help", self._show_help, "Show help for the mapping editor.")
         help_btn.pack(side="right", anchor="se")
-        ToolTip(help_btn, "Show help for the mapping editor.")
 
     def _refresh_tree(self):
         """
@@ -194,7 +205,7 @@ class MappingEditor(tk.Toplevel):
         if not pattern or not folder:
             show_error("Pattern and folder cannot be empty.")
             return
-    
+
         selected = self.tree.selection()
         if selected:
             # Get the old pattern using the second column (Pattern)
@@ -212,10 +223,12 @@ class MappingEditor(tk.Toplevel):
                 self.mapping = OrderedDict(new_items)
         else:
             self.mapping[pattern] = folder
-    
+
         self._refresh_tree()
         self.pattern_entry.delete(0, tk.END)
         self.folder_entry.delete(0, tk.END)
+        self.pattern_var.set("")
+        self.folder_var.set("")
 
     def _delete_entry(self):
         selected = self.tree.selection()
@@ -230,12 +243,13 @@ class MappingEditor(tk.Toplevel):
         selected = self.tree.selection()
         if not selected:
             return
-        # Use the second and third columns for pattern and folder
         _, pattern, folder = self.tree.item(selected[0])['values']
         self.pattern_entry.delete(0, tk.END)
         self.pattern_entry.insert(0, pattern)
         self.folder_entry.delete(0, tk.END)
         self.folder_entry.insert(0, folder)
+        self.pattern_var.set(pattern)
+        self.folder_var.set(folder)
 
     def _test_pattern(self):
         pattern = self.pattern_entry.get().strip()
@@ -252,11 +266,11 @@ class MappingEditor(tk.Toplevel):
         def set_pattern(pattern):
             self.pattern_entry.delete(0, tk.END)
             self.pattern_entry.insert(0, pattern)
+            self.pattern_var.set(pattern)
         PatternBuilder(self, set_pattern)
 
-    # Drag and drop reordering
+    # Drag and drop reordering (with selection preserved)
     def _on_tree_press(self, event):
-        # Record the item and y position being pressed, but do not interfere with selection
         item = self.tree.identify_row(event.y)
         if item:
             self._dragging_item = item
@@ -266,12 +280,10 @@ class MappingEditor(tk.Toplevel):
             self._dragging_item = None
             self._drag_start_y = None
             self._dragging = False
-        # Do NOT return "break" here; allow normal selection
 
     def _on_tree_motion(self, event):
         if not self._dragging_item or self._drag_start_y is None:
             return
-        # Only start drag if mouse moved more than threshold
         if not self._dragging and abs(event.y - self._drag_start_y) < self._drag_threshold:
             return
         self._dragging = True
@@ -281,16 +293,14 @@ class MappingEditor(tk.Toplevel):
             idx_target = self.tree.index(target)
             self.tree.move(self._dragging_item, '', idx_target)
             self._dragging_item = self.tree.get_children()[idx_target]
-            self._drag_start_y = event.y  # Update for smoother dragging
+            self._drag_start_y = event.y
 
     def _on_tree_release(self, event):
         if self._dragging_item is None or not self._dragging:
-            # Not a drag, just a click: allow normal selection/editing
             self._dragging_item = None
             self._drag_start_y = None
             self._dragging = False
             return
-        # If it was a drag, update the mapping order
         new_order = []
         for item in self.tree.get_children():
             _, pattern, folder = self.tree.item(item)['values']

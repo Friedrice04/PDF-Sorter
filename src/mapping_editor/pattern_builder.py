@@ -1,15 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
 
-
 class PatternBuilder(tk.Toplevel):
     """
-    A simple dialog to help users build filename patterns without knowing wildcards.
+    A robust dialog to help users build filename patterns without knowing wildcards.
     """
     def __init__(self, master, on_pattern_ready):
         super().__init__(master)
         self.title("Pattern Builder")
-        self.geometry("350x250")
+        self.geometry("370x260")
         self.on_pattern_ready = on_pattern_ready
 
         self.var_starts = tk.StringVar()
@@ -53,34 +52,49 @@ class PatternBuilder(tk.Toplevel):
         self._update_preview()
 
     def _update_preview(self, *args):
-        pattern = ""
         starts = self.var_starts.get()
         contains = self.var_contains.get()
         ends = self.var_ends.get()
         ext = self.var_ext.get().lstrip(".")
 
+        pattern = ""
+
+        # Start
         if starts:
             pattern += starts
-        else:
+
+        # Contains (can be multiple, comma-separated)
+        contains_parts = [c.strip() for c in contains.split(",") if c.strip()]
+        for c in contains_parts:
+            if not pattern.endswith("*") and pattern:
+                pattern += "*"
+            pattern += c
             pattern += "*"
-        if contains:
+
+        # If no contains, but starts and ends are set, add wildcard between
+        if not contains_parts and starts and ends:
             if not pattern.endswith("*"):
                 pattern += "*"
-            pattern += contains
-            pattern += "*"
-        else:
-            if not pattern.endswith("*"):
-                pattern += "*"
+
+        # Ends with
         if ends:
             if pattern.endswith("*"):
                 pattern = pattern[:-1]
             pattern += ends
+
+        # Extension
         if ext:
             if pattern.endswith("*"):
                 pattern = pattern[:-1]
-            pattern += f".{ext}"
-        if not pattern:
+            if not ext.startswith("."):
+                pattern += f".{ext}"
+            else:
+                pattern += ext
+
+        # If nothing is set, match everything
+        if not (starts or contains_parts or ends or ext):
             pattern = "*"
+
         self.pattern_preview.config(text=f"Pattern: {pattern}")
         self.current_pattern = pattern
 
