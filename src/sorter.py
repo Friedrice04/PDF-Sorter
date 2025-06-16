@@ -34,7 +34,7 @@ class FileSorter:
     def __init__(self, mapping_path):
         self.mapping = FileMapping(mapping_path)
 
-    def sort_files(self, src_dir, dest_dir):
+    def _sort_files(self, src_dir, dest_dir):
         """
         Sort files from src_dir into dest_dir based on mapping.
         """
@@ -51,16 +51,7 @@ class FileSorter:
         """
         Sort files in the given directory.
         """
-        self.sort_files(directory, directory)
-
-    def sort_first_level_subdirs(self, parent_dir):
-        """
-        Sort files in all first-level subdirectories of parent_dir.
-        """
-        for subdir in os.listdir(parent_dir):
-            subdir_path = os.path.join(parent_dir, subdir)
-            if os.path.isdir(subdir_path):
-                self.sort_current_directory(subdir_path)
+        self._sort_files(directory, directory)
 
     def deep_audit_and_sort(self, root_dir):
         """

@@ -1,49 +1,38 @@
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import ttk
+
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from src import sorter
 from src.mapping_editor.editor import MappingEditor
 from src import utils
 
 class FileSorterGUI:
-    """
-    Main GUI class for the File Sorter application.
-    Handles user interaction, mapping selection, and sorting operations.
-    """
     def __init__(self, root):
         self.root = root
         self.root.title("File Sorter")
         self.mapping_path = None
-        self.directory = None
-        self.sort_mode = tk.StringVar(value="single")
         self.deep_audit = tk.BooleanVar(value=False)
 
         self._build_widgets()
         self._populate_mappings()
 
     def _show_help(self):
-        """
-        Show a help dialog explaining the design and usage.
-        """
         message = (
             "File Sorter Help\n\n"
             "This tool sorts files into folders based on patterns defined in a mapping file.\n\n"
-            "Sorting Modes:\n"
-            "- Single Folder: Sorts files in the selected folder only.\n"
-            "- Child Folders: Sorts files in each first-level subfolder.\n\n"
+            "Folders to Sort:\n"
+            "- Add one or more folders to the list. Each will be sorted according to the mapping.\n"
+            "- You can drag and drop folders from Explorer into the list below to add them quickly.\n\n"
             "Deep Audit:\n"
             "When enabled, after sorting, the tool will recursively scan for misplaced files and move them to the correct folders.\n\n"
             "Use the Mapping Editor to create or modify mapping files.\n"
         )
+        from tkinter import messagebox
         messagebox.showinfo("Help - File Sorter", message)
 
     def _build_widgets(self):
-        """
-        Build and layout all widgets in the main window.
-        """
-
-        # Mapping selection
         mapping_frame = ttk.LabelFrame(self.root, text="Mapping File")
         mapping_frame.pack(fill="x", padx=10, pady=5)
 
@@ -56,54 +45,74 @@ class FileSorterGUI:
         edit_btn.pack(side="left", padx=5)
         utils.ToolTip(edit_btn, "Open the mapping editor to create or modify mapping files.")
 
-        # Directory selection
-        dir_frame = ttk.LabelFrame(self.root, text="Directory to Sort")
-        dir_frame.pack(fill="x", padx=10, pady=5)
+        folder_frame = ttk.LabelFrame(self.root, text="Folders to Sort (Drag folders here or use Add Folder...)")
+        folder_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
-        self.dir_entry = ttk.Entry(dir_frame)
-        self.dir_entry.pack(side="left", fill="x", expand=True, padx=5, pady=5)
-        utils.ToolTip(self.dir_entry, "Path to the folder you want to sort.")
+        listbox_frame = ttk.Frame(folder_frame)
+        listbox_frame.pack(side="left", fill="both", expand=True, padx=(5, 0), pady=5)
 
-        browse_btn = ttk.Button(dir_frame, text="Browse...", command=self._browse_directory)
-        browse_btn.pack(side="left", padx=5)
-        utils.ToolTip(browse_btn, "Browse for the folder you want to sort.")
+        self.folder_listbox = tk.Listbox(listbox_frame, selectmode=tk.EXTENDED, bg="#ffffff")
+        self.folder_listbox.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.folder_listbox.drop_target_register(DND_FILES)
+        self.folder_listbox.dnd_bind('<<Drop>>', self._on_drop_folders)
 
-        # Sorting mode
-        mode_frame = ttk.LabelFrame(self.root, text="Sorting Mode")
-        mode_frame.pack(fill="x", padx=10, pady=5)
+        self.watermark_label = tk.Label(
+            self.folder_listbox,
+            text="FileSorter",
+            font=("Arial", 16, "bold"),
+            fg="#cccccc",
+            bg="#ffffff"
+        )
+        self._update_watermark()
 
-        single_radio = ttk.Radiobutton(mode_frame, text="Single Folder", variable=self.sort_mode, value="single")
-        single_radio.pack(side="left", padx=5)
-        utils.ToolTip(single_radio, "Sort files in the selected folder only.")
+        listbox_frame.rowconfigure(0, weight=1)
+        listbox_frame.columnconfigure(0, weight=1)
+        self.folder_listbox.lift()
 
-        child_radio = ttk.Radiobutton(mode_frame, text="Child Folders", variable=self.sort_mode, value="child")
-        child_radio.pack(side="left", padx=5)
-        utils.ToolTip(child_radio, "Sort files in each first-level subfolder.")
+        button_frame = ttk.Frame(folder_frame)
+        button_frame.pack(side="left", fill="y", padx=5, pady=5)
+
+        add_folder_btn = ttk.Button(button_frame, text="Add Folder...", command=self._add_folder)
+        add_folder_btn.pack(fill="x", pady=(0, 5))
+        utils.ToolTip(add_folder_btn, "Add a folder to the list to be sorted.")
+
+        remove_folder_btn = ttk.Button(button_frame, text="Remove Selected", command=self._remove_selected_folders)
+        remove_folder_btn.pack(fill="x")
+        utils.ToolTip(remove_folder_btn, "Remove selected folders from the list.")
+
+        self.root.rowconfigure(2, weight=1)
+        self.root.columnconfigure(0, weight=1)
+        folder_frame.rowconfigure(0, weight=1)
+        folder_frame.columnconfigure(0, weight=1)
 
         deep_chk = ttk.Checkbutton(
-            mode_frame,
+            self.root,
             text="Deep Audit",
             variable=self.deep_audit
         )
-        deep_chk.pack(side="left", padx=10)
+        deep_chk.pack(padx=10, anchor="w")
         utils.ToolTip(deep_chk, "If checked, recursively move misplaced files to their correct folders after sorting.")
 
-        # Sort button
-        sort_btn = ttk.Button(self.root, text="Sort Files", command=self._sort_files)
-        sort_btn.pack(pady=10)
+        button_row = ttk.Frame(self.root)
+        button_row.pack(fill="x", padx=10, pady=5)
+
+        sort_btn = ttk.Button(button_row, text="Sort Files", command=self._sort_files)
+        sort_btn.pack(side="left")
         utils.ToolTip(sort_btn, "Start sorting files according to the selected options.")
 
-        # Help button
-        help_frame = ttk.Frame(self.root)
-        help_frame.pack(fill="both", expand=False, padx=10, pady=5)
-        help_btn = ttk.Button(help_frame, text="Help", command=self._show_help)
-        help_btn.pack(side="right", anchor="se")
+        help_btn = ttk.Button(button_row, text="Help", command=self._show_help)
+        help_btn.pack(side="right")
         utils.ToolTip(help_btn, "Show help and usage instructions.")
 
+        self.folder_listbox.bind("<Configure>", lambda e: self._update_watermark())
+
+    def _update_watermark(self):
+        if self.folder_listbox.size() == 0:
+            self.watermark_label.place(relx=0.5, rely=0.5, anchor="center")
+        else:
+            self.watermark_label.place_forget()
+
     def _populate_mappings(self):
-        """
-        Populate the mapping combobox with available mapping files.
-        """
         mappings_folder = utils.MappingUtils.get_mappings_folder()
         mapping_files = utils.MappingUtils.list_mapping_files(mappings_folder)
         self.mapping_combo['values'] = mapping_files
@@ -112,68 +121,62 @@ class FileSorterGUI:
             self.mapping_path = os.path.join(mappings_folder, mapping_files[0])
 
     def _on_mapping_selected(self, event):
-        """
-        Update the selected mapping path when the user selects a mapping.
-        """
         selected = self.mapping_combo.get()
         if selected:
             self.mapping_path = os.path.join(utils.MappingUtils.get_mappings_folder(), selected)
 
-    def _browse_directory(self):
-        """
-        Open a dialog for the user to select a directory to sort.
-        """
-        directory = filedialog.askdirectory()
-        if directory:
-            self.dir_entry.delete(0, tk.END)
-            self.dir_entry.insert(0, directory)
-            self.directory = directory
+    def _add_folder(self):
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(mustexist=True, title="Select Folder to Sort")
+        if folder:
+            if folder not in self.folder_listbox.get(0, tk.END):
+                self.folder_listbox.insert(tk.END, folder)
+        self._update_watermark()
+
+    def _on_drop_folders(self, event):
+        paths = self.root.tk.splitlist(event.data)
+        for folder in paths:
+            folder = folder.strip('"')
+            if os.path.isdir(folder) and folder not in self.folder_listbox.get(0, tk.END):
+                self.folder_listbox.insert(tk.END, folder)
+        self._update_watermark()
+
+    def _remove_selected_folders(self):
+        selected_indices = list(self.folder_listbox.curselection())
+        for idx in reversed(selected_indices):
+            self.folder_listbox.delete(idx)
+        self._update_watermark()
 
     def _open_mapping_editor(self):
-        """
-        Open the mapping editor window.
-        """
         MappingEditor(self.root, self._populate_mappings)
 
     def _sort_files(self):
-        """
-        Perform the sorting operation based on user selections.
-        """
         mapping_path = self.mapping_path
-        directory = self.dir_entry.get()
+        folders = self.folder_listbox.get(0, tk.END)
         if not mapping_path or not os.path.isfile(mapping_path):
             utils.show_error("Please select a valid mapping file.")
             return
-        if not directory or not os.path.isdir(directory):
-            utils.show_error("Please select a valid directory to sort.")
+        if not folders:
+            utils.show_error("Please add at least one folder to sort.")
             return
 
         try:
             sorter_obj = sorter.FileSorter(mapping_path)
-            mode = self.sort_mode.get()
             deep_audit = self.deep_audit.get()
-            if mode == "single":
-                sorter_obj.sort_current_directory(directory)
-                if deep_audit:
-                    sorter_obj.deep_audit_and_sort(directory)
-            elif mode == "child":
-                sorter_obj.sort_first_level_subdirs(directory)
-                if deep_audit:
-                    for subdir in os.listdir(directory):
-                        subdir_path = os.path.join(directory, subdir)
-                        if os.path.isdir(subdir_path):
-                            sorter_obj.deep_audit_and_sort(subdir_path)
-            else:
-                utils.show_error("Unknown sorting mode selected.")
-                return
+            for folder in folders:
+                if os.path.isdir(folder):
+                    sorter_obj.sort_current_directory(folder)
+                    if deep_audit:
+                        sorter_obj.deep_audit_and_sort(folder)
+            from tkinter import messagebox
             messagebox.showinfo("Success", "Files sorted successfully!")
         except Exception as e:
             utils.show_error(f"An error occurred during sorting:\n{e}")
 
 def main():
-    """
-    Entry point for the GUI application.
-    """
-    root = tk.Tk()
+    root = TkinterDnD.Tk()
     FileSorterGUI(root)
     root.mainloop()
+
+if __name__ == "__main__":
+    main()

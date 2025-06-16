@@ -12,55 +12,58 @@ def show_error(message):
 
 
 class MappingUtils:
-    """
-    Utility class for handling mapping file operations and validation.
-    """
-    
-    @staticmethod
-    def get_mappings_folder():
-        """
-        Return the path to the mappings folder, creating it if necessary.
-        """
-        folder = os.path.join(os.path.dirname(__file__), "mappings")
-        os.makedirs(folder, exist_ok=True)
-        return folder
-
-    @staticmethod
-    def list_mapping_files(folder=None):
-        """
-        List all JSON mapping files in the given folder.
-        """
-        if folder is None:
-            folder = MappingUtils.get_mappings_folder()
-        return [f for f in os.listdir(folder) if f.endswith(".json")]
-    
     @staticmethod
     def load_json_file(path):
-        """
-        Load and return JSON data from a file.
-        """
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
 
     @staticmethod
     def save_json_file(path, data):
-        """
-        Save data as JSON to a file.
-        """
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
     @staticmethod
     def validate_mapping(mapping):
-        """
-        Validate that the mapping is a dict with non-empty pattern and folder strings.
-        """
+        # Basic validation: mapping should be a dict of str:str
         if not isinstance(mapping, dict):
             return False
-        for pattern, folder in mapping.items():
-            if not pattern or not folder:
+        for k, v in mapping.items():
+            if not isinstance(k, str) or not isinstance(v, str):
                 return False
         return True
+
+    @staticmethod
+    def load_mapping(path):
+        return MappingUtils.load_json_file(path)
+
+    @staticmethod
+    def save_mapping(path, mapping):
+        MappingUtils.save_json_file(path, mapping)
+
+    @staticmethod
+    def is_valid_mapping_file(path):
+        try:
+            mapping = MappingUtils.load_json_file(path)
+            return MappingUtils.validate_mapping(mapping)
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_mappings_folder():
+        # You can customize this as needed
+        folder = os.path.join(os.getcwd(), "mappings")
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        return folder
+
+    @staticmethod
+    def list_mapping_files(folder):
+        return [f for f in os.listdir(folder) if f.endswith(".json")]
+
+    @staticmethod
+    def show_error(msg):
+        from tkinter import messagebox
+        messagebox.showerror("Error", msg)
 
 class ToolTip:
     """
