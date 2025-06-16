@@ -3,12 +3,12 @@ from tkinter import ttk, filedialog, messagebox
 import fnmatch
 from collections import OrderedDict
 
-from utils import (
+from src.utils import (
     MappingUtils,
     show_error,
     ToolTip
 )
-from .pattern_builder import PatternBuilder
+from src.mapping_editor.pattern_builder import PatternBuilder
 
 def labeled_entry(parent, label_text, var=None, **entry_kwargs):
     """
@@ -309,4 +309,3 @@ class MappingEditor(tk.Toplevel):
         self._refresh_tree()
         self._dragging_item = None
         self._drag_start_y = None
-        self._dragging = False

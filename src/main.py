@@ -1,6 +1,6 @@
 # Entry point for the File Sorter application.
-from gui import main
+from src import gui
 
 if __name__ == "__main__":
     # Launch the GUI
-    main()
+    gui.main()
