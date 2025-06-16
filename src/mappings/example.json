@@ -1,0 +1,12 @@
+{
+    "*.pdf": "PDF Documents",
+    "Invoice*2024*.docx": "2024 Invoices",
+    "PAYP*": "Payroll",
+    "Report_??.xlsx": "Monthly Reports",
+    "IMG_*.jpg": "Images",
+    "Tr*FE": "Transfers",
+    "Notes[AB].txt": "Special Notes",
+    "backup_*.zip": "Backups",
+    "Letter*": "Letters",
+    "*_final.*": "Final Versions"
+}
