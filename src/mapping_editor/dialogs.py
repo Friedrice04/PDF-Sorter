@@ -103,7 +103,7 @@ class NewMappingDialog(simpledialog.Dialog):
 class PatternDestDialog(simpledialog.Dialog):
     """
     Dialog for adding or editing a pattern/destination mapping.
-    Provides a clean, user-friendly layout with help text.
+    Provides a clean, user-friendly layout that resizes intelligently.
     """
     def __init__(self, parent, title, template_dir, destinations, initial_pattern=None, initial_dest=None):
         self.pattern = None
@@ -118,42 +118,43 @@ class PatternDestDialog(simpledialog.Dialog):
         """
         Build the dialog UI.
         """
-        frame = ttk.Frame(master, padding=16)
-        frame.grid(sticky="nsew")
+        # Create a content frame with padding that will hold all widgets
+        content_frame = ttk.Frame(master, padding=(16, 16, 16, 8))
+        content_frame.grid(row=0, column=0, sticky="nsew")
         master.grid_rowconfigure(0, weight=1)
         master.grid_columnconfigure(0, weight=1)
-        frame.grid_columnconfigure(1, weight=1)
 
-        # Pattern
-        ttk.Label(frame, text="Pattern:").grid(row=0, column=0, sticky="e", pady=(0, 8), padx=(0, 8))
-        self.pattern_entry = ttk.Entry(frame)
+        # Configure the content frame for expansion
+        content_frame.grid_columnconfigure(1, weight=1)
+
+        # --- Pattern ---
+        ttk.Label(content_frame, text="Pattern:").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.pattern_entry = ttk.Entry(content_frame)
         self.pattern_entry.grid(row=0, column=1, sticky="ew", pady=(0, 8))
         self.pattern_entry.insert(0, self.initial_pattern or "")
         self.pattern_entry.focus_set()
 
-        # Destination
-        ttk.Label(frame, text="Destination:").grid(row=1, column=0, sticky="e", pady=(0, 8), padx=(0, 8))
-        self.dest_combo = ttk.Combobox(frame, values=self.destinations, state="readonly")
+        # --- Destination ---
+        ttk.Label(content_frame, text="Destination:").grid(row=1, column=0, sticky="w", pady=(0, 8))
+        self.dest_combo = ttk.Combobox(content_frame, values=self.destinations, state="readonly")
         self.dest_combo.grid(row=1, column=1, sticky="ew", pady=(0, 8))
         if self.initial_dest:
             self.dest_combo.set(self.initial_dest)
         elif self.destinations:
             self.dest_combo.set(self.destinations[0])
 
-        # Info/help text
-        info = (
-            "• Use wildcards like * and ? in patterns (e.g. *.jpg, report_*.pdf)\n"
-            "• Destination is relative to the template directory"
-        )
-        info_label = ttk.Label(frame, text=info, foreground="#666", font=("Segoe UI", 9, "italic"), anchor="w", justify="left")
-        info_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 0))
+        # --- Help Text ---
+        info = "Tip: Use * as a wildcard. Drag patterns from the main editor to set destinations."
+        info_label = ttk.Label(content_frame, text=info, foreground="#666", font=("Segoe UI", 9), anchor="w", justify="left")
+        info_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
+        # --- Resizing Logic ---
         self.resizable(True, False)
-        # Set initial geometry based on destination length
         dest = self.initial_dest if self.initial_dest else (self.destinations[0] if self.destinations else "")
-        min_width = 400
-        width = max(min_width, 7 * len(dest) + 160)
-        self.after(10, lambda: self.geometry(f"{width}x160"))
+        min_width = 450
+        width = max(min_width, 8 * len(dest) + 150)
+        height = 170
+        self.after(10, lambda: self.geometry(f"{width}x{height}"))
 
         return self.pattern_entry
 

@@ -8,6 +8,8 @@ from .mapping_table import MappingTable
 from src.utils import ToolTip
 from src import utils
 
+MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
+
 class MappingEditor(tk.Toplevel):
     """
     Main window for editing file sorting mappings, using MappingTable and TemplateTree.
@@ -18,17 +20,18 @@ class MappingEditor(tk.Toplevel):
         self.title("Mapping Editor")
         self.geometry("1000x600")
         self.on_save_callback = on_save_callback
-        self.mappings = {}  # pattern: destination
+        self.mappings = {}
         self.mapping_path = mapping_path
         self.template_dir = None
+        self.is_dirty = False  # Track unsaved changes
 
         self._dragged_pattern = None
         self._dragging = False
         self._drag_context = None
 
         self._build_widgets()
-        # Bind global mouse release for drag-and-drop (only for setting destination)
         self.bind_all("<ButtonRelease-1>", self._on_drag_release)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)  # Handle window close
 
         if self.mapping_path:
             self.mapping_file_var.set(os.path.basename(self.mapping_path))
@@ -159,21 +162,52 @@ class MappingEditor(tk.Toplevel):
         save_btn.pack(side="right", padx=(5, 0))
         ToolTip(save_btn, "Save changes to the mapping file.")
 
-        cancel_btn = ttk.Button(bottom_frame, text="Cancel", command=self.destroy)
+        cancel_btn = ttk.Button(bottom_frame, text="Cancel", command=self._on_close)
         cancel_btn.pack(side="right")
         ToolTip(cancel_btn, "Cancel and close the editor.")
 
+    def _set_dirty(self, dirty=True):
+        """Mark the editor state as dirty (unsaved) and update title."""
+        if dirty and not self.is_dirty:
+            self.title(self.title() + " *")
+        elif not dirty and self.is_dirty:
+            self.title(self.title().rstrip(" *"))
+        self.is_dirty = dirty
+
+    def _check_unsaved_changes(self):
+        """Check for unsaved changes and prompt user. Return True if it's safe to proceed."""
+        if not self.is_dirty:
+            return True
+        response = messagebox.askyesnocancel(
+            "Unsaved Changes",
+            "You have unsaved changes. Do you want to save them?",
+            parent=self
+        )
+        if response is True:  # Yes
+            self._save()
+            return not self.is_dirty # Proceed if save was successful
+        elif response is False:  # No
+            return True # Proceed without saving
+        else:  # Cancel
+            return False # Do not proceed
+
+    def _on_close(self):
+        """Handle closing the window, checking for unsaved changes."""
+        if self._check_unsaved_changes():
+            self.destroy()
+
     def _get_mapping_files(self):
-        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
-        os.makedirs(mappings_folder, exist_ok=True)
-        return [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
+        os.makedirs(MAPPINGS_DIR, exist_ok=True)
+        return [f for f in os.listdir(MAPPINGS_DIR) if f.endswith(".json")]
 
     def _on_mapping_file_selected(self, event=None):
+        if not self._check_unsaved_changes():
+            self.mapping_file_var.set(os.path.basename(self.mapping_path or ""))
+            return
         selected_file = self.mapping_file_var.get()
         if not selected_file:
             return
-        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
-        file_path = os.path.join(mappings_folder, selected_file)
+        file_path = os.path.join(MAPPINGS_DIR, selected_file)
         self.mapping_path = file_path
         self.template_dir = self._get_template_dir(file_path)
         if not os.path.exists(self.template_dir):
@@ -182,25 +216,22 @@ class MappingEditor(tk.Toplevel):
         self._populate_template_tree()
 
     def _search_mapping_file(self):
-        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
-        os.makedirs(mappings_folder, exist_ok=True)
-        all_files = [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
-
+        if not self._check_unsaved_changes():
+            return
+        os.makedirs(MAPPINGS_DIR, exist_ok=True)
+        all_files = [f for f in os.listdir(MAPPINGS_DIR) if f.endswith(".json")]
         dialog = tk.Toplevel(self)
         dialog.title("Search Mapping File")
         dialog.geometry("400x400")
         dialog.transient(self)
         dialog.grab_set()
-
         ttk.Label(dialog, text="Search:").pack(anchor="w", padx=10, pady=(10, 0))
         search_var = tk.StringVar()
         search_entry = ttk.Entry(dialog, textvariable=search_var)
         search_entry.pack(fill="x", padx=10, pady=(0, 5))
         search_entry.focus_set()
-
         listbox = tk.Listbox(dialog, height=15)
         listbox.pack(fill="both", expand=True, padx=10, pady=5)
-
         def update_list(*args):
             query = search_var.get().lower()
             listbox.delete(0, tk.END)
@@ -209,34 +240,24 @@ class MappingEditor(tk.Toplevel):
                     listbox.insert(tk.END, f)
         search_var.trace_add("write", update_list)
         update_list()
-
         selected_file = {"name": None}
-
         def on_select(event=None):
             selection = listbox.curselection()
             if selection:
                 selected_file["name"] = listbox.get(selection[0])
                 dialog.destroy()
-
         listbox.bind("<Double-Button-1>", on_select)
-
-        def on_ok():
-            on_select()
-
-        def on_cancel():
-            dialog.destroy()
-
+        def on_ok(): on_select()
+        def on_cancel(): dialog.destroy()
         btn_frame = ttk.Frame(dialog)
         btn_frame.pack(fill="x", padx=10, pady=(0, 10))
         ok_btn = ttk.Button(btn_frame, text="OK", command=on_ok)
         ok_btn.pack(side="right")
         cancel_btn = ttk.Button(btn_frame, text="Cancel", command=on_cancel)
         cancel_btn.pack(side="right", padx=(0, 5))
-
         dialog.wait_window()
-
         if selected_file["name"]:
-            file_path = os.path.join(mappings_folder, selected_file["name"])
+            file_path = os.path.join(MAPPINGS_DIR, selected_file["name"])
             self.mapping_path = file_path
             self.mapping_file_var.set(os.path.basename(file_path))
             self.mapping_files = self._get_mapping_files()
@@ -333,22 +354,23 @@ class MappingEditor(tk.Toplevel):
         self.mappings = updated_mappings
         self._refresh_mapping_table()
         self._populate_template_tree()
+        self._set_dirty()
 
     def _get_template_dir(self, mapping_path):
         base, _ = os.path.splitext(mapping_path)
         return base + "_template"
 
     def _new_mapping_file(self):
-        mappings_folder = os.path.join(os.path.dirname(__file__), "../mappings")
-        mappings_folder = os.path.abspath(mappings_folder)
-        os.makedirs(mappings_folder, exist_ok=True)
+        if not self._check_unsaved_changes():
+            return
+        os.makedirs(MAPPINGS_DIR, exist_ok=True)
         dialog = NewMappingDialog(self, "New Mapping")
         mapping_name = getattr(dialog, "mapping_name", None)
         import_selected = getattr(dialog, "import_selected", False)
         import_path = getattr(dialog, "import_path", None)
         if not mapping_name:
             return
-        mapping_path = os.path.join(mappings_folder, mapping_name + ".json")
+        mapping_path = os.path.join(MAPPINGS_DIR, mapping_name + ".json")
         if os.path.exists(mapping_path):
             messagebox.showerror("File Exists", "A mapping file with that name already exists.", parent=self)
             return
@@ -376,6 +398,7 @@ class MappingEditor(tk.Toplevel):
         self._populate_template_tree()
         if import_selected and import_path:
             self._load_mappings()
+        self._set_dirty(False)
 
     def _load_mappings(self):
         if self.mapping_path and utils.MappingUtils.is_valid_mapping_file(self.mapping_path):
@@ -384,6 +407,7 @@ class MappingEditor(tk.Toplevel):
         else:
             self.mappings = {}
             self.mapping_table.delete(*self.mapping_table.get_children())
+        self._set_dirty(False)
 
     def _refresh_mapping_table(self):
         self.mapping_table.refresh(self.mappings)
@@ -451,7 +475,6 @@ class MappingEditor(tk.Toplevel):
     def _on_drag_release(self, event):
         if not self._dragging or not self._dragged_pattern:
             return
-
         widget = self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery())
         if widget == self.template_tree:
             self._clear_template_tree_highlight()
@@ -464,10 +487,10 @@ class MappingEditor(tk.Toplevel):
             else:
                 rel_path = "."
             if self._dragged_pattern in self.mappings:
-                self.mappings[self._dragged_pattern] = rel_path
-                self._refresh_mapping_table()
-
-        # Reset drag state
+                if self.mappings[self._dragged_pattern] != rel_path:
+                    self.mappings[self._dragged_pattern] = rel_path
+                    self._refresh_mapping_table()
+                    self._set_dirty()
         self._dragged_pattern = None
         self._dragging = False
         self._drag_context = None
@@ -514,6 +537,7 @@ class MappingEditor(tk.Toplevel):
             return
         self.mappings[pattern] = dest
         self._refresh_mapping_table()
+        self._set_dirty()
 
     def _edit_rule(self):
         if not self.template_dir or not os.path.exists(self.template_dir):
@@ -536,6 +560,7 @@ class MappingEditor(tk.Toplevel):
         del self.mappings[pattern]
         self.mappings[new_pattern] = new_dest
         self._refresh_mapping_table()
+        self._set_dirty()
 
     def _remove_rule(self):
         selected = self.mapping_table.selection()
@@ -546,6 +571,7 @@ class MappingEditor(tk.Toplevel):
         pattern, _ = self.mapping_table.item(item, "values")
         del self.mappings[pattern]
         self._refresh_mapping_table()
+        self._set_dirty()
 
     def _move_up(self):
         selected = self.mapping_table.selection()
@@ -554,12 +580,12 @@ class MappingEditor(tk.Toplevel):
         item = selected[0]
         index = self.mapping_table.index(item)
         keys = list(self.mappings.keys())
-        key = keys[index]
         keys.insert(index - 1, keys.pop(index))
         new_mappings = {k: self.mappings[k] for k in keys}
         self.mappings = new_mappings
         self._refresh_mapping_table()
         self.mapping_table.selection_set(self.mapping_table.get_children()[index - 1])
+        self._set_dirty()
 
     def _move_down(self):
         selected = self.mapping_table.selection()
@@ -568,21 +594,22 @@ class MappingEditor(tk.Toplevel):
         item = selected[0]
         index = self.mapping_table.index(item)
         keys = list(self.mappings.keys())
-        key = keys[index]
         keys.insert(index + 1, keys.pop(index))
         new_mappings = {k: self.mappings[k] for k in keys}
         self.mappings = new_mappings
         self._refresh_mapping_table()
         self.mapping_table.selection_set(self.mapping_table.get_children()[index + 1])
+        self._set_dirty()
 
     def _save(self):
         if not self.mapping_path:
             messagebox.showerror("No Mapping File", "No mapping file selected to save.")
             return
         utils.MappingUtils.save_mapping(self.mapping_path, self.mappings)
+        self._set_dirty(False)
         if self.on_save_callback:
             self.on_save_callback()
-        self.destroy()
+        messagebox.showinfo("Saved", "Mapping saved successfully.", parent=self)
 
 # For testing layout only
 if __name__ == "__main__":
