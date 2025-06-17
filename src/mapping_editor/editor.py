@@ -44,20 +44,20 @@ class MappingEditor(tk.Toplevel):
         file_frame.pack(fill="x", padx=10, pady=(10, 0))
 
         self.mapping_file_var = tk.StringVar()
-        file_label = ttk.Label(
+        self.mapping_files = self._get_mapping_files()
+        self.mapping_file_combo = ttk.Combobox(
             file_frame,
+            values=self.mapping_files,
             textvariable=self.mapping_file_var,
-            font=("Segoe UI", 11, "bold"),
-            foreground="#2a4d7f",
-            background="#f0f4fa",
-            anchor="w"
+            state="readonly"
         )
-        file_label.pack(side="left", fill="x", expand=True, padx=(0, 5), ipady=2, ipadx=4)
-        ToolTip(file_label, "Currently selected mapping JSON file.")
+        self.mapping_file_combo.pack(side="left", fill="x", expand=True, padx=(0, 5), ipady=2, ipadx=4)
+        ToolTip(self.mapping_file_combo, "Select a mapping JSON file to edit.")
+        self.mapping_file_combo.bind("<<ComboboxSelected>>", self._on_mapping_file_selected)
 
-        select_btn = ttk.Button(file_frame, text="Select Mapping File...", command=self._select_mapping_file)
-        select_btn.pack(side="left")
-        ToolTip(select_btn, "Choose a mapping JSON file to edit.")
+        search_btn = ttk.Button(file_frame, text="Search...", command=self._search_mapping_file)
+        search_btn.pack(side="left")
+        ToolTip(search_btn, "Search for a mapping JSON file by name.")
 
         new_btn = ttk.Button(file_frame, text="New Mapping", command=self._new_mapping_file)
         new_btn.pack(side="left", padx=(5, 0))
@@ -124,6 +124,9 @@ class MappingEditor(tk.Toplevel):
         self.template_tree.pack(fill="both", expand=True, padx=(0, 5), pady=0)
         ToolTip(self.template_tree, "Visualize and manage the template directory structure.")
 
+        # Enable drag-over detection for context switching on template tree
+        self.template_tree.bind("<Motion>", self._on_drag_motion_context)
+
         # Add right-click context menu for template tree
         self._build_template_tree_menu()
         self.template_tree.bind("<Button-3>", self._on_template_tree_right_click)
@@ -144,6 +147,10 @@ class MappingEditor(tk.Toplevel):
         refresh_template_btn.pack(side="left")
         ToolTip(refresh_template_btn, "Refresh the template directory view.")
 
+        auto_tree_btn = ttk.Button(template_btn_frame, text="Auto-Build Tree", command=self._create_template_tree_from_mappings)
+        auto_tree_btn.pack(side="left", padx=(5, 0))
+        ToolTip(auto_tree_btn, "Automatically create folders in the template directory for all destinations in your mappings.")
+
         # --- Save and Cancel at the bottom ---
         bottom_frame = ttk.Frame(self)
         bottom_frame.pack(fill="x", padx=10, pady=(0, 10))
@@ -155,6 +162,90 @@ class MappingEditor(tk.Toplevel):
         cancel_btn = ttk.Button(bottom_frame, text="Cancel", command=self.destroy)
         cancel_btn.pack(side="right")
         ToolTip(cancel_btn, "Cancel and close the editor.")
+
+    def _get_mapping_files(self):
+        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
+        os.makedirs(mappings_folder, exist_ok=True)
+        return [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
+
+    def _on_mapping_file_selected(self, event=None):
+        selected_file = self.mapping_file_var.get()
+        if not selected_file:
+            return
+        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
+        file_path = os.path.join(mappings_folder, selected_file)
+        self.mapping_path = file_path
+        self.template_dir = self._get_template_dir(file_path)
+        if not os.path.exists(self.template_dir):
+            os.makedirs(self.template_dir)
+        self._load_mappings()
+        self._populate_template_tree()
+
+    def _search_mapping_file(self):
+        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
+        os.makedirs(mappings_folder, exist_ok=True)
+        all_files = [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Search Mapping File")
+        dialog.geometry("400x400")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text="Search:").pack(anchor="w", padx=10, pady=(10, 0))
+        search_var = tk.StringVar()
+        search_entry = ttk.Entry(dialog, textvariable=search_var)
+        search_entry.pack(fill="x", padx=10, pady=(0, 5))
+        search_entry.focus_set()
+
+        listbox = tk.Listbox(dialog, height=15)
+        listbox.pack(fill="both", expand=True, padx=10, pady=5)
+
+        def update_list(*args):
+            query = search_var.get().lower()
+            listbox.delete(0, tk.END)
+            for f in all_files:
+                if query in f.lower():
+                    listbox.insert(tk.END, f)
+        search_var.trace_add("write", update_list)
+        update_list()
+
+        selected_file = {"name": None}
+
+        def on_select(event=None):
+            selection = listbox.curselection()
+            if selection:
+                selected_file["name"] = listbox.get(selection[0])
+                dialog.destroy()
+
+        listbox.bind("<Double-Button-1>", on_select)
+
+        def on_ok():
+            on_select()
+
+        def on_cancel():
+            dialog.destroy()
+
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.pack(fill="x", padx=10, pady=(0, 10))
+        ok_btn = ttk.Button(btn_frame, text="OK", command=on_ok)
+        ok_btn.pack(side="right")
+        cancel_btn = ttk.Button(btn_frame, text="Cancel", command=on_cancel)
+        cancel_btn.pack(side="right", padx=(0, 5))
+
+        dialog.wait_window()
+
+        if selected_file["name"]:
+            file_path = os.path.join(mappings_folder, selected_file["name"])
+            self.mapping_path = file_path
+            self.mapping_file_var.set(os.path.basename(file_path))
+            self.mapping_files = self._get_mapping_files()
+            self.mapping_file_combo["values"] = self.mapping_files
+            self.template_dir = self._get_template_dir(file_path)
+            if not os.path.exists(self.template_dir):
+                os.makedirs(self.template_dir)
+            self._load_mappings()
+            self._populate_template_tree()
 
     def _build_mapping_table_menu(self):
         self.mapping_table_menu = tk.Menu(self, tearoff=0)
@@ -247,59 +338,6 @@ class MappingEditor(tk.Toplevel):
         base, _ = os.path.splitext(mapping_path)
         return base + "_template"
 
-    def _select_mapping_file(self):
-        mappings_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
-        os.makedirs(mappings_folder, exist_ok=True)
-
-        json_files = [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
-        if not json_files:
-            messagebox.showinfo("No Mappings", "No mapping JSON files found in the mappings folder.", parent=self)
-            return
-
-        dialog = tk.Toplevel(self)
-        dialog.title("Select Mapping File")
-        dialog.geometry("400x300")
-        dialog.transient(self)
-        dialog.grab_set()
-
-        label = ttk.Label(dialog, text="Double-click a mapping file to select:")
-        label.pack(padx=10, pady=(10, 5), anchor="w")
-
-        listbox = tk.Listbox(dialog, height=15)
-        for f in json_files:
-            listbox.insert(tk.END, f)
-        listbox.pack(fill="both", expand=True, padx=10, pady=5)
-
-        selected_file = {"name": None}
-
-        def on_select(event=None):
-            selection = listbox.curselection()
-            if selection:
-                selected_file["name"] = listbox.get(selection[0])
-                dialog.destroy()
-
-        listbox.bind("<Double-Button-1>", on_select)
-
-        def on_cancel():
-            dialog.destroy()
-
-        btn_frame = ttk.Frame(dialog)
-        btn_frame.pack(fill="x", padx=10, pady=(0, 10))
-        cancel_btn = ttk.Button(btn_frame, text="Cancel", command=on_cancel)
-        cancel_btn.pack(side="right")
-
-        dialog.wait_window()
-
-        if selected_file["name"]:
-            file_path = os.path.join(mappings_folder, selected_file["name"])
-            self.mapping_path = file_path
-            self.mapping_file_var.set(os.path.basename(file_path))
-            self.template_dir = self._get_template_dir(file_path)
-            if not os.path.exists(self.template_dir):
-                os.makedirs(self.template_dir)
-            self._load_mappings()
-            self._populate_template_tree()
-
     def _new_mapping_file(self):
         mappings_folder = os.path.join(os.path.dirname(__file__), "../mappings")
         mappings_folder = os.path.abspath(mappings_folder)
@@ -329,6 +367,8 @@ class MappingEditor(tk.Toplevel):
             with open(mapping_path, "w", encoding="utf-8") as f:
                 f.write("{}")
         self.mapping_path = mapping_path
+        self.mapping_files = self._get_mapping_files()
+        self.mapping_file_combo["values"] = self.mapping_files
         self.mapping_file_var.set(os.path.basename(mapping_path))
         self.template_dir = template_dir
         self.mappings = {}
@@ -371,6 +411,23 @@ class MappingEditor(tk.Toplevel):
 
     def _on_folder_selected(self, rel_path):
         pass
+
+    def _create_template_tree_from_mappings(self):
+        if not self.template_dir:
+            messagebox.showerror("No Template Directory", "No template directory set.", parent=self)
+            return
+        created = 0
+        for dest in set(self.mappings.values()):
+            if not dest or dest == ".":
+                continue
+            folder_path = os.path.join(self.template_dir, dest)
+            try:
+                os.makedirs(folder_path, exist_ok=True)
+                created += 1
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not create folder '{dest}': {e}", parent=self)
+        self._populate_template_tree()
+        messagebox.showinfo("Done", f"Template tree updated from mappings.\nFolders created/ensured: {created}", parent=self)
 
     # --- Drag and drop logic for assigning destination folders ---
 
