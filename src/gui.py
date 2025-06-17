@@ -1,19 +1,39 @@
 import os
+import json
 import tkinter as tk
-from tkinter import ttk
-
+from tkinter import ttk, messagebox
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from src import sorter
 from src.mapping_editor.editor import MappingEditor
 from src import utils
 
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
+
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_settings(settings):
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(settings, f)
+    except Exception:
+        pass
+
 class FileSorterGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("File Sorter")
+        self.root.geometry("500x500")  # Set default window size
         self.mapping_path = None
         self.deep_audit = tk.BooleanVar(value=False)
+        self.settings = load_settings()
 
         # Set a minimum window size to prevent overlap
         self.root.minsize(300, 220)
@@ -122,17 +142,25 @@ class FileSorterGUI:
             os.makedirs(mappings_folder)
         mapping_files = [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
         self.mapping_combo['values'] = mapping_files
+
+        last_mapping = self.settings.get("last_mapping")
         if mapping_files:
-            self.mapping_combo.current(0)
-            self.mapping_path = os.path.join(mappings_folder, mapping_files[0])
+            if last_mapping and last_mapping in mapping_files:
+                self.mapping_combo.set(last_mapping)
+                self.mapping_path = os.path.join(mappings_folder, last_mapping)
+            else:
+                self.mapping_combo.current(0)
+                self.mapping_path = os.path.join(mappings_folder, mapping_files[0])
         else:
             self.mapping_path = None
 
-    def _on_mapping_selected(self, event):
+    def _on_mapping_selected(self, event=None):
         selected = self.mapping_combo.get()
         if selected:
             mappings_folder = os.path.join(os.path.dirname(__file__), "mappings")
             self.mapping_path = os.path.join(mappings_folder, selected)
+            self.settings["last_mapping"] = selected
+            save_settings(self.settings)
 
     def _add_folder(self):
         from tkinter import filedialog
@@ -143,6 +171,7 @@ class FileSorterGUI:
         self._update_watermark()
 
     def _on_drop_folders(self, event):
+        # Accept multiple folders dropped at once
         paths = self.root.tk.splitlist(event.data)
         for folder in paths:
             folder = folder.strip('"')
@@ -157,7 +186,14 @@ class FileSorterGUI:
         self._update_watermark()
 
     def _open_mapping_editor(self):
-        MappingEditor(self.root, self._populate_mappings, mapping_path=self.mapping_path)
+        def on_save_callback():
+            # After saving, ensure the current mapping is selected and settings are updated
+            selected = os.path.basename(self.mapping_path)
+            self.mapping_combo.set(selected)
+            self.settings["last_mapping"] = selected
+            save_settings(self.settings)
+            self._populate_mappings()
+        MappingEditor(self.root, on_save_callback=on_save_callback, mapping_path=self.mapping_path)
 
     def _sort_files(self):
         mapping_path = self.mapping_path
@@ -184,6 +220,7 @@ class FileSorterGUI:
 
 def main():
     root = TkinterDnD.Tk()
+    root.geometry("800x600")  # Set default window size
     FileSorterGUI(root)
     root.mainloop()
 
