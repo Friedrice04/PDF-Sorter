@@ -15,6 +15,9 @@ class FileSorterGUI:
         self.mapping_path = None
         self.deep_audit = tk.BooleanVar(value=False)
 
+        # Set a minimum window size to prevent overlap
+        self.root.minsize(300, 220)
+
         self._build_widgets()
         self._populate_mappings()
 
@@ -113,17 +116,23 @@ class FileSorterGUI:
             self.watermark_label.place_forget()
 
     def _populate_mappings(self):
-        mappings_folder = utils.MappingUtils.get_mappings_folder()
-        mapping_files = utils.MappingUtils.list_mapping_files(mappings_folder)
+        # Show mapping files from src/mappings
+        mappings_folder = os.path.join(os.path.dirname(__file__), "mappings")
+        if not os.path.exists(mappings_folder):
+            os.makedirs(mappings_folder)
+        mapping_files = [f for f in os.listdir(mappings_folder) if f.endswith(".json")]
         self.mapping_combo['values'] = mapping_files
         if mapping_files:
             self.mapping_combo.current(0)
             self.mapping_path = os.path.join(mappings_folder, mapping_files[0])
+        else:
+            self.mapping_path = None
 
     def _on_mapping_selected(self, event):
         selected = self.mapping_combo.get()
         if selected:
-            self.mapping_path = os.path.join(utils.MappingUtils.get_mappings_folder(), selected)
+            mappings_folder = os.path.join(os.path.dirname(__file__), "mappings")
+            self.mapping_path = os.path.join(mappings_folder, selected)
 
     def _add_folder(self):
         from tkinter import filedialog
@@ -148,7 +157,7 @@ class FileSorterGUI:
         self._update_watermark()
 
     def _open_mapping_editor(self):
-        MappingEditor(self.root, self._populate_mappings)
+        MappingEditor(self.root, self._populate_mappings, mapping_path=self.mapping_path)
 
     def _sort_files(self):
         mapping_path = self.mapping_path
