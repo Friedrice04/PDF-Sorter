@@ -1,92 +1,85 @@
 import os
 import shutil
-import fnmatch
-import json
 import fitz  # PyMuPDF
 
-class FileMapping:
-    """
-    Handles loading and validating file mapping from JSON.
-    The mapping consists of phrases to find in PDF content.
-    """
-    def __init__(self, mapping_path):
-        self.mapping = self.load_mapping(mapping_path)
+from . import utils
 
-    @staticmethod
-    def load_mapping(mapping_path):
-        """
-        Load mapping from a JSON file.
-        """
-        with open(mapping_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+class Sorter:
+    def __init__(self, mapping_path, progress_callback=None, status_callback=None):
+        self.mapping_path = mapping_path
+        self.progress_callback = progress_callback
+        self.status_callback = status_callback
+        self.mapping_data = self.load_mapping()
 
-    def get_destination_for_pdf(self, file_path):
+    def load_mapping(self):
         """
-        Extracts text from a PDF and returns a destination folder if a mapped phrase is found.
+        Load mapping from the JSON file specified by mapping_path.
+        """
+        if self.status_callback:
+            self.status_callback(f"Loading mapping from {self.mapping_path}")
+        data = utils.MappingUtils.load_mapping(self.mapping_path)
+        if self.status_callback:
+            self.status_callback(f"Mapping loaded from {self.mapping_path}")
+        return data
+
+    def read_pdf_text(self, file_path):
+        """
+        Reads and returns the text content from a PDF file.
+        Returns an empty string if the file cannot be read.
         """
         try:
             with fitz.open(file_path) as doc:
-                text = ""
-                for page in doc:
-                    text += page.get_text()
-            
-            # Make search case-insensitive
-            text_lower = text.lower()
+                text = "".join(page.get_text() for page in doc)
+                return text
+        except Exception as e:
+            if self.status_callback:
+                self.status_callback(f"Error reading {os.path.basename(file_path)}: {e}")
+            return ""
 
-            for phrase, folder in self.mapping.items():
-                if phrase.lower() in text_lower:
-                    return folder
-        except Exception:
-            # Could be a corrupted PDF or not a PDF at all
-            return None
-        return None
+    def sort_files(self, folders_to_sort, deep_audit=False):
+        total_files_sorted = 0
+        total_files_scanned = 0
 
-    def get_destination(self, file_path):
-        """
-        Return the destination folder for a given file.
-        Currently only supports sorting based on PDF content.
-        """
-        if file_path.lower().endswith('.pdf'):
-            return self.get_destination_for_pdf(file_path)
-        return None
+        for folder in folders_to_sort:
+            root = folder  # In this simplified version, we sort each folder individually
+            if self.status_callback:
+                self.status_callback(f"Sorting folder: {root}")
 
-class FileSorter:
-    """
-    Main class for sorting files based on mapping.
-    """
-    def __init__(self, mapping_path):
-        self.mapping = FileMapping(mapping_path)
+            for filename in os.listdir(root):
+                if filename.startswith('.'):
+                    continue  # Skip hidden files
+                
+                total_files_scanned += 1
+                file_path = os.path.join(root, filename)
+                if os.path.isdir(file_path):
+                    # Skip directories in this version
+                    continue
+                
+                if filename.lower().endswith('.pdf'):
+                    if self.status_callback:
+                        self.status_callback(f"Scanning: {file_path}")
 
-    def _sort_files(self, src_dir, dest_dir):
-        """
-        Sort files from src_dir into dest_dir based on mapping.
-        """
-        for filename in os.listdir(src_dir):
-            src_path = os.path.join(src_dir, filename)
-            if os.path.isfile(src_path):
-                dest_folder = self.mapping.get_destination(src_path)
-                if dest_folder:
-                    dest_path = os.path.join(dest_dir, dest_folder)
-                    os.makedirs(dest_path, exist_ok=True)
-                    shutil.move(src_path, os.path.join(dest_path, filename))
+                    text = self.read_pdf_text(file_path)
+                    if not text:
+                        continue
 
-    def sort_current_directory(self, directory):
-        """
-        Sort files in the given directory.
-        """
-        self._sort_files(directory, directory)
+                    try:
+                        destination_folder = self.find_destination(text)
 
-    def deep_audit_and_sort(self, root_dir):
-        """
-        Recursively move misplaced files to their correct folders.
-        """
-        for dirpath, _, filenames in os.walk(root_dir):
-            for filename in filenames:
-                current_path = os.path.join(dirpath, filename)
-                correct_folder = self.mapping.get_destination(current_path)
-                if correct_folder:
-                    correct_path = os.path.join(root_dir, correct_folder)
-                    os.makedirs(correct_path, exist_ok=True)
-                    target_path = os.path.join(correct_path, filename)
-                    if os.path.abspath(current_path) != os.path.abspath(target_path):
-                        shutil.move(current_path, target_path)
+                        if destination_folder:
+                            destination_path = os.path.join(self.template_dir, destination_folder)
+                            os.makedirs(destination_path, exist_ok=True)
+                            shutil.move(file_path, os.path.join(destination_path, filename))
+                            total_files_sorted += 1
+                            if self.progress_callback:
+                                self.progress_callback(total_files_sorted, total_files_scanned)
+                        else:
+                            if self.status_callback:
+                                self.status_callback(f"No match found for: {filename}")
+                    except Exception as e:
+                        if self.status_callback:
+                            self.status_callback(f"Error processing {filename}: {e}")
+
+        if deep_audit:
+            if self.status_callback:
+                self.status_callback("Deep audit not implemented in this version.")
