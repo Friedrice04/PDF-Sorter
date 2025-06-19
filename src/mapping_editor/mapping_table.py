@@ -3,19 +3,19 @@ from tkinter import ttk
 
 class MappingTable(ttk.Treeview):
     """
-    Custom Treeview for displaying and managing pattern → destination mappings.
+    Custom Treeview for displaying and managing phrase → destination mappings.
     Handles drag start for drag-and-drop assignment.
     """
-    def __init__(self, master, on_pattern_drag=None, **kwargs):
-        columns = ("Pattern", "Destination")
+    def __init__(self, master, on_item_drag=None, **kwargs):
+        columns = ("Phrase / Keyword", "Destination")
         super().__init__(master, columns=columns, show="headings", selectmode="browse", **kwargs)
-        self.heading("Pattern", text="Pattern")
+        self.heading("Phrase / Keyword", text="Phrase / Keyword")
         self.heading("Destination", text="Destination")
-        self.column("Pattern", width=250, anchor="w")
+        self.column("Phrase / Keyword", width=250, anchor="w")
         self.column("Destination", width=350, anchor="w")
-        self.on_pattern_drag = on_pattern_drag
+        self.on_item_drag = on_item_drag
 
-        self._dragged_pattern = None
+        self._dragged_item = None
         self._dragging = False
 
         self.bind("<ButtonPress-1>", self._on_drag_start)
@@ -25,20 +25,20 @@ class MappingTable(ttk.Treeview):
     def _on_drag_start(self, event):
         item = self.identify_row(event.y)
         if item:
-            self._dragged_pattern = self.item(item, "values")[0]
+            self._dragged_item = self.item(item, "values")[0]
             self.selection_set(item)
             self._dragging = True
-            if self.on_pattern_drag:
-                self.on_pattern_drag("start", self._dragged_pattern)
+            if self.on_item_drag:
+                self.on_item_drag("start", self._dragged_item)
         else:
-            self._dragged_pattern = None
+            self._dragged_item = None
             self._dragging = False
 
     def _on_drag_motion(self, event):
-        if self._dragging and self.on_pattern_drag:
-            self.on_pattern_drag("motion", self._dragged_pattern)
+        if self._dragging and self.on_item_drag:
+            self.on_item_drag("motion", self._dragged_item)
 
     def refresh(self, mappings):
         self.delete(*self.get_children())
-        for pattern, dest in mappings.items():
-            self.insert("", "end", values=(pattern, dest))
+        for phrase, dest in mappings.items():
+            self.insert("", "end", values=(phrase, dest))

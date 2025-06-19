@@ -25,7 +25,7 @@ class MappingEditor(tk.Toplevel):
         self.template_dir = None
         self.is_dirty = False  # Track unsaved changes
 
-        self._dragged_pattern = None
+        self._dragged_item = None
         self._dragging = False
         self._drag_context = None
 
@@ -74,12 +74,12 @@ class MappingEditor(tk.Toplevel):
         left_frame = ttk.Frame(paned)
         paned.add(left_frame, weight=3)
 
-        mapping_label = ttk.Label(left_frame, text="Pattern → Destination", font=("Segoe UI", 10, "bold"))
+        mapping_label = ttk.Label(left_frame, text="Phrase / Keyword → Destination", font=("Segoe UI", 10, "bold"))
         mapping_label.pack(anchor="w", padx=5, pady=(0, 2))
 
-        self.mapping_table = MappingTable(left_frame, on_pattern_drag=self._on_pattern_drag_event)
+        self.mapping_table = MappingTable(left_frame, on_item_drag=self._on_item_drag_event)
         self.mapping_table.pack(fill="both", expand=True, padx=0, pady=0)
-        ToolTip(self.mapping_table, "Patterns and their destination folders.")
+        ToolTip(self.mapping_table, "Phrases and their destination folders. Drag a phrase onto a folder to assign.")
 
         # Enable drag-and-drop ONLY for setting destination (not for reordering)
         self.mapping_table.bind("<Motion>", self._on_drag_motion_context)
@@ -98,7 +98,7 @@ class MappingEditor(tk.Toplevel):
 
         add_btn = ttk.Button(button_frame, text="Add", command=self._add_rule)
         add_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        ToolTip(add_btn, "Add a new pattern mapping.")
+        ToolTip(add_btn, "Add a new phrase mapping.")
 
         remove_btn = ttk.Button(button_frame, text="Remove", command=self._remove_rule)
         remove_btn.pack(side="left", fill="x", expand=True, padx=(0, 5))
@@ -270,20 +270,20 @@ class MappingEditor(tk.Toplevel):
 
     def _build_mapping_table_menu(self):
         self.mapping_table_menu = tk.Menu(self, tearoff=0)
-        self.mapping_table_menu.add_command(label="Add Pattern", command=self._add_rule)
-        self.mapping_table_menu.add_command(label="Edit Pattern", command=self._edit_rule)
-        self.mapping_table_menu.add_command(label="Remove Pattern", command=self._remove_rule)
+        self.mapping_table_menu.add_command(label="Add Phrase/Keyword", command=self._add_rule)
+        self.mapping_table_menu.add_command(label="Edit Phrase/Keyword", command=self._edit_rule)
+        self.mapping_table_menu.add_command(label="Remove Phrase/Keyword", command=self._remove_rule)
 
     def _on_mapping_table_right_click(self, event):
         item = self.mapping_table.identify_row(event.y)
         if item:
             self.mapping_table.selection_set(item)
-            self.mapping_table_menu.entryconfig("Edit Pattern", state="normal")
-            self.mapping_table_menu.entryconfig("Remove Pattern", state="normal")
+            self.mapping_table_menu.entryconfig("Edit Phrase/Keyword", state="normal")
+            self.mapping_table_menu.entryconfig("Remove Phrase/Keyword", state="normal")
         else:
             self.mapping_table.selection_remove(self.mapping_table.selection())
-            self.mapping_table_menu.entryconfig("Edit Pattern", state="disabled")
-            self.mapping_table_menu.entryconfig("Remove Pattern", state="disabled")
+            self.mapping_table_menu.entryconfig("Edit Phrase/Keyword", state="disabled")
+            self.mapping_table_menu.entryconfig("Remove Phrase/Keyword", state="disabled")
         self.mapping_table_menu.tk_popup(event.x_root, event.y_root)
 
     def _build_template_tree_menu(self):
@@ -335,10 +335,10 @@ class MappingEditor(tk.Toplevel):
 
         # Update all mappings whose destination includes the old folder path
         updated_mappings = {}
-        for pattern, dest in self.mappings.items():
+        for phrase, dest in self.mappings.items():
             # If dest is "." or empty, skip
             if not dest or dest == ".":
-                updated_mappings[pattern] = dest
+                updated_mappings[phrase] = dest
                 continue
             # Normalize paths for comparison
             norm_dest = os.path.normpath(dest)
@@ -348,9 +348,9 @@ class MappingEditor(tk.Toplevel):
                 new_dest = os.path.normpath(
                     norm_dest.replace(norm_old, new_rel_path, 1)
                 )
-                updated_mappings[pattern] = new_dest
+                updated_mappings[phrase] = new_dest
             else:
-                updated_mappings[pattern] = dest
+                updated_mappings[phrase] = dest
         self.mappings = updated_mappings
         self._refresh_mapping_table()
         self._populate_template_tree()
@@ -455,16 +455,16 @@ class MappingEditor(tk.Toplevel):
 
     # --- Drag and drop logic for assigning destination folders ---
 
-    def _on_pattern_drag_event(self, action, pattern, event=None):
+    def _on_item_drag_event(self, action, item, event=None):
         if action == "start":
-            self._dragged_pattern = pattern
+            self._dragged_item = item
             self._dragging = True
         elif action == "motion":
             if self._dragging:
                 self._highlight_template_tree_under_pointer()
 
     def _on_drag_motion_context(self, event):
-        if self._dragging and self._dragged_pattern:
+        if self._dragging and self._dragged_item:
             widget = event.widget
             if widget == self.template_tree:
                 self._drag_context = "template"
@@ -473,7 +473,7 @@ class MappingEditor(tk.Toplevel):
                 self._drag_context = None
 
     def _on_drag_release(self, event):
-        if not self._dragging or not self._dragged_pattern:
+        if not self._dragging or not self._dragged_item:
             return
         widget = self.winfo_containing(self.winfo_pointerx(), self.winfo_pointery())
         if widget == self.template_tree:
@@ -486,12 +486,12 @@ class MappingEditor(tk.Toplevel):
                 self._highlight_drop_target(dest_item)
             else:
                 rel_path = "."
-            if self._dragged_pattern in self.mappings:
-                if self.mappings[self._dragged_pattern] != rel_path:
-                    self.mappings[self._dragged_pattern] = rel_path
+            if self._dragged_item in self.mappings:
+                if self.mappings[self._dragged_item] != rel_path:
+                    self.mappings[self._dragged_item] = rel_path
                     self._refresh_mapping_table()
                     self._set_dirty()
-        self._dragged_pattern = None
+        self._dragged_item = None
         self._dragging = False
         self._drag_context = None
 
@@ -528,14 +528,14 @@ class MappingEditor(tk.Toplevel):
             messagebox.showerror("No Template Directory", "Please select a mapping file first.", parent=self)
             return
         destinations = self._get_all_destinations()
-        dialog = PatternDestDialog(self, "Add Pattern Mapping", self.template_dir, destinations)
-        pattern, dest = dialog.pattern, dialog.dest
-        if not pattern or not dest:
+        dialog = PatternDestDialog(self, "Add Phrase/Keyword Mapping", self.template_dir, destinations)
+        phrase, dest = dialog.phrase, dialog.dest
+        if not phrase or not dest:
             return
-        if pattern in self.mappings:
-            messagebox.showwarning("Duplicate Pattern", "This pattern already exists.")
+        if phrase in self.mappings:
+            messagebox.showwarning("Duplicate Phrase/Keyword", "This phrase or keyword already exists.")
             return
-        self.mappings[pattern] = dest
+        self.mappings[phrase] = dest
         self._refresh_mapping_table()
         self._set_dirty()
 
@@ -548,17 +548,17 @@ class MappingEditor(tk.Toplevel):
             messagebox.showwarning("No Selection", "Please select a mapping to edit.")
             return
         item = selected[0]
-        pattern, dest = self.mapping_table.item(item, "values")
+        phrase, dest = self.mapping_table.item(item, "values")
         destinations = self._get_all_destinations()
-        dialog = PatternDestDialog(self, "Edit Pattern Mapping", self.template_dir, destinations, initial_pattern=pattern, initial_dest=dest)
-        new_pattern, new_dest = dialog.pattern, dialog.dest
-        if not new_pattern or not new_dest:
+        dialog = PatternDestDialog(self, "Edit Phrase/Keyword Mapping", self.template_dir, destinations, initial_phrase=phrase, initial_dest=dest)
+        new_phrase, new_dest = dialog.phrase, dialog.dest
+        if not new_phrase or not new_dest:
             return
-        if new_pattern != pattern and new_pattern in self.mappings:
-            messagebox.showwarning("Duplicate Pattern", "This pattern already exists.")
+        if new_phrase != phrase and new_phrase in self.mappings:
+            messagebox.showwarning("Duplicate Phrase/Keyword", "This phrase or keyword already exists.")
             return
-        del self.mappings[pattern]
-        self.mappings[new_pattern] = new_dest
+        del self.mappings[phrase]
+        self.mappings[new_phrase] = new_dest
         self._refresh_mapping_table()
         self._set_dirty()
 
@@ -568,8 +568,8 @@ class MappingEditor(tk.Toplevel):
             messagebox.showwarning("No Selection", "Please select a mapping to remove.")
             return
         item = selected[0]
-        pattern, _ = self.mapping_table.item(item, "values")
-        del self.mappings[pattern]
+        phrase, _ = self.mapping_table.item(item, "values")
+        del self.mappings[phrase]
         self._refresh_mapping_table()
         self._set_dirty()
 

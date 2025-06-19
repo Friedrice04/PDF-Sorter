@@ -102,15 +102,15 @@ class NewMappingDialog(simpledialog.Dialog):
 
 class PatternDestDialog(simpledialog.Dialog):
     """
-    Dialog for adding or editing a pattern/destination mapping.
+    Dialog for adding or editing a phrase/destination mapping.
     Provides a clean, user-friendly layout that resizes intelligently.
     """
-    def __init__(self, parent, title, template_dir, destinations, initial_pattern=None, initial_dest=None):
-        self.pattern = None
+    def __init__(self, parent, title, template_dir, destinations, initial_phrase=None, initial_dest=None):
+        self.phrase = None
         self.dest = None
         self.template_dir = template_dir
         self.destinations = destinations
-        self.initial_pattern = initial_pattern
+        self.initial_phrase = initial_phrase
         self.initial_dest = initial_dest
         super().__init__(parent, title)
 
@@ -127,12 +127,12 @@ class PatternDestDialog(simpledialog.Dialog):
         # Configure the content frame for expansion
         content_frame.grid_columnconfigure(1, weight=1)
 
-        # --- Pattern ---
-        ttk.Label(content_frame, text="Pattern:").grid(row=0, column=0, sticky="w", pady=(0, 8))
-        self.pattern_entry = ttk.Entry(content_frame)
-        self.pattern_entry.grid(row=0, column=1, sticky="ew", pady=(0, 8))
-        self.pattern_entry.insert(0, self.initial_pattern or "")
-        self.pattern_entry.focus_set()
+        # --- Phrase / Keyword ---
+        ttk.Label(content_frame, text="Phrase / Keyword:").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.phrase_entry = ttk.Entry(content_frame)
+        self.phrase_entry.grid(row=0, column=1, sticky="ew", pady=(0, 8))
+        self.phrase_entry.insert(0, self.initial_phrase or "")
+        self.phrase_entry.focus_set()
 
         # --- Destination ---
         ttk.Label(content_frame, text="Destination:").grid(row=1, column=0, sticky="w", pady=(0, 8))
@@ -144,7 +144,7 @@ class PatternDestDialog(simpledialog.Dialog):
             self.dest_combo.set(self.destinations[0])
 
         # --- Help Text ---
-        info = "Tip: Use * as a wildcard. Drag patterns from the main editor to set destinations."
+        info = "Tip: The sorter will search for this exact phrase (case-insensitive) in PDF documents."
         info_label = ttk.Label(content_frame, text=info, foreground="#666", font=("Segoe UI", 9), anchor="w", justify="left")
         info_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
@@ -156,16 +156,16 @@ class PatternDestDialog(simpledialog.Dialog):
         height = 170
         self.after(10, lambda: self.geometry(f"{width}x{height}"))
 
-        return self.pattern_entry
+        return self.phrase_entry
 
     def validate(self):
         """
         Validate user input before closing the dialog.
         """
-        pattern = self.pattern_entry.get().strip()
+        phrase = self.phrase_entry.get().strip()
         dest = self.dest_combo.get().strip()
-        if not pattern:
-            messagebox.showerror("Error", "Please enter a pattern.", parent=self)
+        if not phrase:
+            messagebox.showerror("Error", "Please enter a phrase or keyword.", parent=self)
             return False
         if not dest:
             messagebox.showerror("Error", "Please select a destination.", parent=self)
@@ -176,7 +176,7 @@ class PatternDestDialog(simpledialog.Dialog):
         """
         Save the dialog results.
         """
-        self.pattern = self.pattern_entry.get().strip()
+        self.phrase = self.phrase_entry.get().strip()
         self.dest = self.dest_combo.get().strip()
 
 # Simple tooltip helper for user-friendliness

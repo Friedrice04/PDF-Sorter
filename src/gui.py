@@ -33,7 +33,7 @@ def save_settings(settings):
 class FileSorterGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("File Sorter")
+        self.root.title("OCR File Sorter")
         self.root.geometry("500x500")
         self.mapping_path = None
         self.deep_audit = tk.BooleanVar(value=False)
@@ -45,16 +45,17 @@ class FileSorterGUI:
 
     def _show_help(self):
         message = (
-            "File Sorter Help\n\n"
-            "This tool sorts files into folders based on patterns defined in a mapping file.\n\n"
+            "OCR File Sorter Help\n\n"
+            "This tool sorts PDF files into folders based on their content.\n"
+            "It reads the text inside each PDF and matches it against phrases defined in a mapping file.\n\n"
             "Folders to Sort:\n"
-            "- Add one or more folders to the list. Each will be sorted according to the mapping.\n"
-            "- You can drag and drop folders from Explorer into the list below to add them quickly.\n\n"
+            "- Add one or more folders to the list. The tool will scan these folders for PDFs to sort.\n"
+            "- You can drag and drop folders from Explorer into the list below.\n\n"
             "Deep Audit:\n"
-            "When enabled, after sorting, the tool will recursively scan for misplaced files and move them to the correct folders.\n\n"
+            "When enabled, after sorting, the tool will recursively scan for misplaced PDF files and move them to the correct folders based on their content.\n\n"
             "Use the Mapping Editor to create or modify mapping files.\n"
         )
-        messagebox.showinfo("Help - File Sorter", message)
+        messagebox.showinfo("Help - OCR File Sorter", message)
 
     def _build_widgets(self):
         mapping_frame = ttk.LabelFrame(self.root, text="Mapping File")
@@ -81,7 +82,7 @@ class FileSorterGUI:
         self.folder_listbox.dnd_bind('<<Drop>>', self._on_drop_folders)
 
         self.watermark_label = tk.Label(
-            self.folder_listbox, text="FileSorter", font=("Arial", 16, "bold"), fg="#cccccc", bg="#ffffff"
+            self.folder_listbox, text="OCR FileSorter", font=("Arial", 16, "bold"), fg="#cccccc", bg="#ffffff"
         )
         self._update_watermark()
 
