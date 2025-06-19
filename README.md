@@ -131,10 +131,6 @@ src/
 
 ---
 
-## License
-
-MIT License
-
----
-
 ## Author
+
+  Henry Dowd
