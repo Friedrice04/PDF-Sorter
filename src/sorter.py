@@ -8,7 +8,6 @@ from . import utils
 try:
     from PIL import Image
     import pytesseract
-    pytesseract.pytesseract.tesseract_cmd = r'C:\tools\Tesseract-OCR\tesseract.exe'
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
@@ -35,16 +34,22 @@ class Sorter:
             self.status_callback(f"Mapping loaded from {self.mapping_path}")
         return data
 
-    def read_pdf_text(self, file_path):
+    def read_pdf_text(self, file_path, first_page_only=False):
         """
-        Reads text from a PDF. First tries direct text extraction.
+        Reads text from a PDF. Can be set to read only the first page.
         If that fails (e.g., for a scanned PDF), it falls back to OCR.
         """
         text = ""
         try:
             # 1. First, try direct text extraction
             with fitz.open(file_path) as doc:
-                text = "".join(page.get_text() for page in doc).strip()
+                if not doc:
+                    return ""
+                
+                if first_page_only:
+                    text = doc[0].get_text().strip()
+                else:
+                    text = "".join(page.get_text() for page in doc).strip()
         except Exception as e:
             if self.status_callback:
                 self.status_callback(f"Error reading {os.path.basename(file_path)}: {e}")
@@ -57,9 +62,17 @@ class Sorter:
             try:
                 ocr_texts = []
                 with fitz.open(file_path) as doc:
-                    for i, page in enumerate(doc):
+                    if not doc:
+                        return ""
+                    
+                    # Determine which pages to scan based on the flag
+                    pages_to_scan = [doc[0]] if first_page_only and len(doc) > 0 else doc
+
+                    for i, page in enumerate(pages_to_scan):
                         if self.status_callback:
-                            self.status_callback(f"OCR page {i + 1}/{len(doc)} of {os.path.basename(file_path)}...")
+                            # Adjust status message for single page scan
+                            page_count = len(pages_to_scan)
+                            self.status_callback(f"OCR page {i + 1}/{page_count} of {os.path.basename(file_path)}...")
                         # Render page to an image (pixmap) at high DPI for better accuracy
                         pix = page.get_pixmap(dpi=300)
                         # Convert pixmap to a PIL Image
@@ -103,7 +116,7 @@ class Sorter:
                 return destination
         return None
 
-    def sort_files(self, folders_to_sort, deep_audit=False):
+    def sort_files(self, folders_to_sort, deep_audit=False, first_page_only=False):
         total_files_sorted = 0
         total_files_scanned = 0
 
@@ -128,7 +141,7 @@ class Sorter:
                     if self.status_callback:
                         self.status_callback(f"Scanning: {file_path}")
 
-                    text = self.read_pdf_text(file_path)
+                    text = self.read_pdf_text(file_path, first_page_only=first_page_only)
                     if not text:
                         continue
 

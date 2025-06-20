@@ -1,18 +1,15 @@
 import os
-import json
 import sys
+import json
 import tkinter as tk
 from tkinter import messagebox
 
 # --- Constants ---
-# Directory where mapping files are stored, relative to the src directory
-MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "mappings"))
-# Path to the settings file
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
-# Key for the last used mapping in the settings file
-LAST_MAPPING_KEY = "last_mapping"
+SETTINGS_FILE = "settings.json"
+LAST_MAPPING_KEY = "last_mapping_file"
+MAPPINGS_DIR = os.path.join('src', 'mappings')
 
-
+# --- Utility Functions ---
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -22,7 +19,6 @@ def resource_path(relative_path):
         # When running as a script, the base path is the project root.
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
-
 
 def load_settings():
     """
@@ -36,17 +32,15 @@ def load_settings():
             return {}  # Return empty settings if file is corrupt or unreadable
     return {}
 
-
 def save_settings(settings):
     """
     Save settings to the settings.json file.
     """
     try:
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+        with open(SETTINGS_FILE, 'w') as f:
             json.dump(settings, f, indent=4)
-    except IOError:
-        show_error("Could not save settings.")
-
+    except Exception:
+        pass
 
 def show_error(message):
     """
@@ -54,30 +48,28 @@ def show_error(message):
     """
     messagebox.showerror("Error", message)
 
-
+# --- Utility Classes ---
 class MappingUtils:
     @staticmethod
-    def load_json_file(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-    @staticmethod
-    def save_json_file(path, data):
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-
-    @staticmethod
-    def validate_mapping(mapping):
-        # Basic validation: mapping should be a dict of str:str
-        if not isinstance(mapping, dict):
-            return False
-        for k, v in mapping.items():
-            if not isinstance(k, str) or not isinstance(v, str):
-                return False
-        return True
+    def get_available_mappings():
+        """Scans the mappings directory and returns a list of .json mapping files."""
+        if not os.path.exists(MAPPINGS_DIR):
+            os.makedirs(MAPPINGS_DIR)
+            return []
+        
+        try:
+            # List files, filter for .json, and return just the filenames
+            mappings = [
+                f for f in os.listdir(MAPPINGS_DIR) 
+                if f.lower().endswith('.json') and os.path.isfile(os.path.join(MAPPINGS_DIR, f))
+            ]
+            return mappings
+        except Exception:
+            return [] # Return empty list on error
 
     @staticmethod
     def load_mapping(path):
+        """Loads a single mapping file."""
         return MappingUtils.load_json_file(path)
 
     @staticmethod
