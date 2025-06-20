@@ -15,14 +15,19 @@ from .utils import (
 class FileSorterGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("OCR File Sorter")
+        # Remove the default OS title bar
+        self.root.overrideredirect(True)
         self.root.geometry("550x480")
 
-        # --- Modern Theme Setup ---
+        # Set a unique color and make it transparent to create rounded window corners.
+        # This works on Windows and some Linux/macOS systems.
+        TRANSPARENT_COLOR = '#000001' # A color unlikely to be used in the UI
+        self.root.config(bg=TRANSPARENT_COLOR)
+        self.root.wm_attributes("-transparentcolor", TRANSPARENT_COLOR)
+
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        # --- Drag & Drop Setup ---
         self.root.drop_target_register(DND_FILES)
         self.root.dnd_bind('<<Drop>>', self._handle_drop)
 
@@ -30,77 +35,125 @@ class FileSorterGUI:
         self.settings = load_settings()
         self.deep_audit = ctk.BooleanVar()
         self.first_page_only = ctk.BooleanVar(value=True)
+        self.folders_to_sort = []
+        self.selected_folder_path = None
+        self.folder_widgets = {}
         self.root.minsize(450, 450)
+
+        # For dragging the frameless window
+        self._offset_x = 0
+        self._offset_y = 0
 
         self._build_widgets()
         self._populate_mappings()
 
     def update_status(self, message):
-        """Callback function to update the status label from the sorter."""
         self.root.after(0, self.status_label.configure, {"text": message})
 
     def _build_widgets(self):
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_rowconfigure(1, weight=1)
+        # Main container with a border to create the window frame effect.
+        # Padding is removed (padx=0, pady=0) to eliminate the white border.
+        main_container = ctk.CTkFrame(self.root, corner_radius=10)
+        main_container.pack(fill="both", expand=True, padx=0, pady=0)
+
+        # --- Custom Title Bar ---
+        title_bar = ctk.CTkFrame(main_container, corner_radius=0)
+        title_bar.pack(fill="x")
+        
+        title_label = ctk.CTkLabel(title_bar, text="OCR File Sorter", font=ctk.CTkFont(weight="bold"))
+        title_label.pack(side="left", padx=10, pady=5)
+
+        close_button = ctk.CTkButton(title_bar, text="✕", width=28, height=28, command=self.root.destroy)
+        close_button.pack(side="right", padx=5, pady=5)
+
+        # Bind events for dragging the window
+        title_bar.bind("<ButtonPress-1>", self._start_move)
+        title_bar.bind("<ButtonRelease-1>", self._stop_move)
+        title_bar.bind("<B1-Motion>", self._do_move)
+        title_label.bind("<ButtonPress-1>", self._start_move)
+        title_label.bind("<ButtonRelease-1>", self._stop_move)
+        title_label.bind("<B1-Motion>", self._do_move)
+
+        # --- Main Content Area ---
+        content_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        content_frame.grid_columnconfigure(0, weight=1)
+        content_frame.grid_rowconfigure(1, weight=1)
 
         # --- Mapping Selection ---
-        mapping_frame = ctk.CTkFrame(self.root)
-        mapping_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        mapping_frame = ctk.CTkFrame(content_frame)
+        mapping_frame.grid(row=0, column=0, sticky="ew")
         mapping_frame.grid_columnconfigure(1, weight=1)
         
-        ctk.CTkLabel(mapping_frame, text="Mapping:").grid(row=0, column=0, padx=(10, 5))
+        ctk.CTkLabel(mapping_frame, text="Mapping:").grid(row=0, column=0, padx=(10, 5), pady=10)
         self.mapping_combo = ctk.CTkComboBox(mapping_frame, state="readonly")
         self.mapping_combo.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
         
         edit_mapping_btn = ctk.CTkButton(mapping_frame, text="Edit", width=50, command=self._open_mapping_editor)
-        edit_mapping_btn.grid(row=0, column=2, padx=(5, 10))
+        edit_mapping_btn.grid(row=0, column=2, padx=(5, 10), pady=10)
 
         # --- Folder List ---
-        main_frame = ctk.CTkFrame(self.root)
-        main_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        main_frame = ctk.CTkFrame(content_frame)
+        main_frame.grid(row=1, column=0, pady=10, sticky="nsew")
         main_frame.grid_columnconfigure(0, weight=1)
         main_frame.grid_rowconfigure(0, weight=1)
         
-        # The CTkTextbox will automatically use the theme colors.
-        # The manual color lookup is no longer needed and has been removed.
-        
-        self.folder_listbox = ctk.CTkTextbox(main_frame, border_width=2)
-        self.folder_listbox.grid(row=0, column=0, rowspan=2, padx=(10, 5), pady=10, sticky="nsew")
-        self.folder_listbox.configure(state="disabled") # Make it read-only
+        self.folder_list_frame = ctk.CTkScrollableFrame(main_frame, border_width=2)
+        self.folder_list_frame.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="nsew")
 
-        add_folder_btn = ctk.CTkButton(main_frame, text="Add Folder", command=self._add_folder)
-        add_folder_btn.grid(row=0, column=1, padx=(5, 10), pady=(10, 5), sticky="ew")
+        # Create a frame to hold the Add/Remove buttons for better alignment
+        side_button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        side_button_frame.grid(row=0, column=1, padx=(5, 10), pady=10, sticky="n")
+
+        add_folder_btn = ctk.CTkButton(side_button_frame, text="Add Folder", command=self._add_folder)
+        add_folder_btn.pack(pady=(0, 5), fill="x")
         
-        remove_folder_btn = ctk.CTkButton(main_frame, text="Remove Selected", command=self._remove_folder)
-        remove_folder_btn.grid(row=1, column=1, padx=(5, 10), pady=(5, 10), sticky="ew")
+        remove_folder_btn = ctk.CTkButton(side_button_frame, text="Remove Selected", command=self._remove_folder)
+        remove_folder_btn.pack(pady=5, fill="x")
 
         # --- Options ---
-        options_frame = ctk.CTkFrame(self.root)
-        options_frame.grid(row=2, column=0, padx=10, pady=5)
+        options_frame = ctk.CTkFrame(content_frame)
+        options_frame.grid(row=2, column=0, sticky="ew")
+        options_frame.grid_columnconfigure((0, 1), weight=1)
 
         deep_audit_check = ctk.CTkCheckBox(options_frame, text="Deep Audit (slower)", variable=self.deep_audit)
-        deep_audit_check.grid(row=0, column=0, padx=10, pady=10)
+        deep_audit_check.pack(side="left", padx=20, pady=10)
 
         first_page_check = ctk.CTkCheckBox(options_frame, text="Scan first page only", variable=self.first_page_only)
-        first_page_check.grid(row=0, column=1, padx=10, pady=10)
+        first_page_check.pack(side="right", padx=20, pady=10)
 
         # --- Bottom Widgets ---
-        bottom_frame = ctk.CTkFrame(self.root)
-        bottom_frame.grid(row=3, column=0, padx=10, pady=(5, 10), sticky="ew")
+        bottom_frame = ctk.CTkFrame(content_frame)
+        bottom_frame.grid(row=3, column=0, pady=(10, 0), sticky="ew")
         bottom_frame.grid_columnconfigure(1, weight=1)
 
         self.sort_btn = ctk.CTkButton(bottom_frame, text="Sort", command=self._start_sort_thread)
         self.sort_btn.grid(row=0, column=0, padx=10, pady=10)
 
-        help_btn = ctk.CTkButton(bottom_frame, text="Help", command=self._show_help)
-        help_btn.grid(row=0, column=2, padx=10, pady=10)
-
         self.status_label = ctk.CTkLabel(bottom_frame, text="Ready", anchor="w")
         self.status_label.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
-        self.progress_bar = ctk.CTkProgressBar(self.root)
-        self.progress_bar.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
+        help_btn = ctk.CTkButton(bottom_frame, text="Help", command=self._show_help)
+        help_btn.grid(row=0, column=2, padx=10, pady=10)
+
+        self.progress_bar = ctk.CTkProgressBar(content_frame)
+        self.progress_bar.grid(row=4, column=0, pady=10, sticky="ew")
         self.progress_bar.set(0)
+
+    # --- Window Dragging Methods ---
+    def _start_move(self, event):
+        self._offset_x = event.x
+        self._offset_y = event.y
+
+    def _stop_move(self, event):
+        self._offset_x = None
+        self._offset_y = None
+
+    def _do_move(self, event):
+        if self._offset_x is not None and self._offset_y is not None:
+            new_x = self.root.winfo_x() + (event.x - self._offset_x)
+            new_y = self.root.winfo_y() + (event.y - self._offset_y)
+            self.root.geometry(f"+{new_x}+{new_y}")
 
     def _populate_mappings(self):
         mappings = utils.MappingUtils.get_available_mappings()
@@ -120,12 +173,33 @@ class FileSorterGUI:
             self.settings[LAST_MAPPING_KEY] = selected_mapping
             save_settings(self.settings)
 
+    def _on_folder_select(self, folder_path):
+        if self.selected_folder_path and self.selected_folder_path in self.folder_widgets:
+            self.folder_widgets[self.selected_folder_path].configure(fg_color="transparent")
+        self.selected_folder_path = folder_path
+        self.folder_widgets[folder_path].configure(fg_color=("gray70", "gray30"))
+
     def _update_folder_list(self):
-        self.folder_listbox.configure(state="normal")
-        self.folder_listbox.delete("1.0", "end")
-        if self.folders_to_sort:
-            self.folder_listbox.insert("1.0", "\n".join(self.folders_to_sort))
-        self.folder_listbox.configure(state="disabled")
+        for widget in self.folder_list_frame.winfo_children():
+            widget.destroy()
+        self.folder_widgets.clear()
+
+        for folder_path in self.folders_to_sort:
+            display_name = os.path.basename(folder_path)
+            folder_button = ctk.CTkButton(
+                self.folder_list_frame,
+                text=display_name,
+                fg_color="transparent",
+                anchor="w",
+                command=lambda p=folder_path: self._on_folder_select(p)
+            )
+            folder_button.pack(fill="x", padx=5, pady=2)
+            self.folder_widgets[folder_path] = folder_button
+
+        if self.selected_folder_path and self.selected_folder_path in self.folder_widgets:
+            self.folder_widgets[self.selected_folder_path].configure(fg_color=("gray70", "gray30"))
+        else:
+            self.selected_folder_path = None
 
     def _add_folder(self):
         folder_path = filedialog.askdirectory(mustexist=True, title="Select Folder to Sort")
@@ -134,11 +208,13 @@ class FileSorterGUI:
             self._update_folder_list()
 
     def _remove_folder(self):
-        # Since CTkTextbox doesn't have selection, we'll remove the last added folder
-        if self.folders_to_sort:
-            removed = self.folders_to_sort.pop()
-            self.update_status(f"Removed: {os.path.basename(removed)}")
+        if self.selected_folder_path:
+            self.folders_to_sort.remove(self.selected_folder_path)
+            self.update_status(f"Removed: {os.path.basename(self.selected_folder_path)}")
+            self.selected_folder_path = None
             self._update_folder_list()
+        else:
+            self.update_status("No folder selected to remove.")
 
     def _handle_drop(self, event):
         paths = self.root.tk.splitlist(event.data)
@@ -162,7 +238,6 @@ class FileSorterGUI:
             selected = self.mapping_combo.get()
             self._populate_mappings()
             self.mapping_combo.set(selected)
-        # Note: The editor window will still use the old style.
         MappingEditor(self.root, on_save_callback=on_save_callback, mapping_path=self.mapping_path)
 
     def _start_sort_thread(self):
@@ -207,8 +282,6 @@ class FileSorterGUI:
             self.root.after(0, final_update)
 
 def main():
-    # To use TkinterDnD2 with customtkinter, the root must be a TkinterDnD.Tk() instance.
-    # This combines the functionality of both libraries.
     root = TkinterDnD.Tk()
     app = FileSorterGUI(root)
     root.mainloop()
