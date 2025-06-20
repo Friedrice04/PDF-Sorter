@@ -86,11 +86,20 @@ class Sorter:
     def find_destination(self, text):
         """
         Finds the destination folder by checking for keywords in the text.
-        The search is case-insensitive.
+        The search is case-insensitive and normalized to handle OCR quirks.
         """
-        text_lower = text.lower()
+        # Normalize the text from the PDF: replace newlines/tabs with spaces,
+        # collapse multiple spaces, and convert to lowercase.
+        normalized_text = ' '.join(text.split()).lower()
+
         for phrase, destination in self.mapping_data.items():
-            if phrase.lower() in text_lower:
+            # Normalize the mapping phrase in the same way.
+            normalized_phrase = ' '.join(phrase.split()).lower()
+            
+            if normalized_phrase in normalized_text:
+                if self.status_callback:
+                    # Add a debug message to show exactly what matched.
+                    self.status_callback(f"Found a match for keyword: '{normalized_phrase}'")
                 return destination
         return None
 
@@ -136,6 +145,11 @@ class Sorter:
                         else:
                             if self.status_callback:
                                 self.status_callback(f"No match found for: {filename}")
+                                # Print the NORMALIZED text for easier debugging
+                                debug_text = ' '.join(text.split()).lower()
+                                if len(debug_text) > 1000:
+                                    debug_text = debug_text[:1000] + "..."
+                                self.status_callback(f"--- Normalized Text Read from {filename} ---\n{debug_text}\n---------------------------------")
                     except Exception as e:
                         if self.status_callback:
                             self.status_callback(f"Error processing {filename}: {e}")
