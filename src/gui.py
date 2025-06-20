@@ -1,6 +1,6 @@
 import os
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 import threading
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -8,7 +8,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from . import sorter, utils
 from .mapping_editor.editor import MappingEditor
 from .utils import (
-    load_settings, save_settings, resource_path,
+    load_settings, save_settings,
     LAST_MAPPING_KEY, MAPPINGS_DIR
 )
 
@@ -16,144 +16,136 @@ class FileSorterGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("OCR File Sorter")
-        self.root.geometry("500x400")
-        
+        self.root.geometry("550x480")
+
+        # --- Modern Theme Setup ---
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
+
+        # --- Drag & Drop Setup ---
         self.root.drop_target_register(DND_FILES)
         self.root.dnd_bind('<<Drop>>', self._handle_drop)
 
         self.mapping_path = None
         self.settings = load_settings()
-        self.deep_audit = tk.BooleanVar()
-        self.first_page_only = tk.BooleanVar(value=True) # Default to True for speed
-        self.root.minsize(300, 220)
+        self.deep_audit = ctk.BooleanVar()
+        self.first_page_only = ctk.BooleanVar(value=True)
+        self.root.minsize(450, 450)
 
         self._build_widgets()
         self._populate_mappings()
 
     def update_status(self, message):
         """Callback function to update the status label from the sorter."""
-        self.root.after(0, self.status_label.config, {"text": message})
+        self.root.after(0, self.status_label.configure, {"text": message})
 
     def _build_widgets(self):
-        # --- Menu Bar (Removed) ---
-        # The help button is now at the bottom of the window.
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=1)
 
         # --- Mapping Selection ---
-        mapping_frame = ttk.Frame(self.root)
-        mapping_frame.pack(pady=5, padx=10, fill=tk.X)
+        mapping_frame = ctk.CTkFrame(self.root)
+        mapping_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        mapping_frame.grid_columnconfigure(1, weight=1)
         
-        ttk.Label(mapping_frame, text="Mapping:").pack(side="left")
-        self.mapping_combo = ttk.Combobox(mapping_frame, state="readonly")
-        self.mapping_combo.pack(side="left", fill=tk.X, expand=True, padx=(5, 5))
+        ctk.CTkLabel(mapping_frame, text="Mapping:").grid(row=0, column=0, padx=(10, 5))
+        self.mapping_combo = ctk.CTkComboBox(mapping_frame, state="readonly")
+        self.mapping_combo.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
         
-        edit_mapping_btn = ttk.Button(mapping_frame, text="Edit", command=self._open_mapping_editor)
-        edit_mapping_btn.pack(side="left")
+        edit_mapping_btn = ctk.CTkButton(mapping_frame, text="Edit", width=50, command=self._open_mapping_editor)
+        edit_mapping_btn.grid(row=0, column=2, padx=(5, 10))
 
         # --- Folder List ---
-        main_frame = ttk.Frame(self.root)
-        main_frame.pack(pady=5, padx=10, fill="both", expand=True)
+        main_frame = ctk.CTkFrame(self.root)
+        main_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(0, weight=1)
         
-        listbox_frame = ttk.Frame(main_frame)
-        listbox_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
-
-        self.folder_listbox = tk.Listbox(listbox_frame, selectmode=tk.EXTENDED, bg="#ffffff")
-        self.folder_listbox.place(relx=0, rely=0, relwidth=1, relheight=1)
-        self.folder_listbox.dnd_bind('<<Drop>>', self._handle_drop)
-
-        self.watermark_label = tk.Label(
-            self.folder_listbox, text="Drag & Drop Folders Here", font=("Segoe UI", 16), fg="#cccccc", bg="#ffffff"
-        )
-        self._update_watermark()
-
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(side="left", fill="y")
+        # The CTkTextbox will automatically use the theme colors.
+        # The manual color lookup is no longer needed and has been removed.
         
-        add_folder_btn = ttk.Button(button_frame, text="Add Folder", command=self._add_folder)
-        add_folder_btn.pack(fill="x", pady=(0, 5))
+        self.folder_listbox = ctk.CTkTextbox(main_frame, border_width=2)
+        self.folder_listbox.grid(row=0, column=0, rowspan=2, padx=(10, 5), pady=10, sticky="nsew")
+        self.folder_listbox.configure(state="disabled") # Make it read-only
+
+        add_folder_btn = ctk.CTkButton(main_frame, text="Add Folder", command=self._add_folder)
+        add_folder_btn.grid(row=0, column=1, padx=(5, 10), pady=(10, 5), sticky="ew")
         
-        remove_folder_btn = ttk.Button(button_frame, text="Remove Selected", command=self._remove_folder)
-        remove_folder_btn.pack(fill="x")
+        remove_folder_btn = ctk.CTkButton(main_frame, text="Remove Selected", command=self._remove_folder)
+        remove_folder_btn.grid(row=1, column=1, padx=(5, 10), pady=(5, 10), sticky="ew")
 
         # --- Options ---
-        options_frame = ttk.Frame(self.root)
-        # This pack configuration centers the frame and its contents
-        options_frame.pack(pady=5)
+        options_frame = ctk.CTkFrame(self.root)
+        options_frame.grid(row=2, column=0, padx=10, pady=5)
 
-        deep_audit_check = ttk.Checkbutton(
-            options_frame, text="Deep Audit (slower)", variable=self.deep_audit
-        )
-        deep_audit_check.pack(side="left", padx=5)
-        utils.ToolTip(deep_audit_check, "Search for files in all subdirectories.")
+        deep_audit_check = ctk.CTkCheckBox(options_frame, text="Deep Audit (slower)", variable=self.deep_audit)
+        deep_audit_check.grid(row=0, column=0, padx=10, pady=10)
 
-        first_page_check = ttk.Checkbutton(
-            options_frame, text="Scan first page only (faster)", variable=self.first_page_only
-        )
-        first_page_check.pack(side="left", padx=5)
-        utils.ToolTip(first_page_check, "Speeds up sorting by only reading the first page of each PDF.")
+        first_page_check = ctk.CTkCheckBox(options_frame, text="Scan first page only", variable=self.first_page_only)
+        first_page_check.grid(row=0, column=1, padx=10, pady=10)
 
         # --- Bottom Widgets ---
-        # Widgets are packed from the bottom up. The first one packed is at the very bottom.
-        
-        # Progress Bar (at the very bottom)
-        self.progress_bar = ttk.Progressbar(self.root, orient="horizontal", mode="determinate")
-        self.progress_bar.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
+        bottom_frame = ctk.CTkFrame(self.root)
+        bottom_frame.grid(row=3, column=0, padx=10, pady=(5, 10), sticky="ew")
+        bottom_frame.grid_columnconfigure(1, weight=1)
 
-        # Status Label (above the progress bar)
-        self.status_label = ttk.Label(self.root, text="Ready", anchor="w")
-        self.status_label.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
+        self.sort_btn = ctk.CTkButton(bottom_frame, text="Sort", command=self._start_sort_thread)
+        self.sort_btn.grid(row=0, column=0, padx=10, pady=10)
 
-        # Bottom Buttons (above the status label)
-        bottom_frame = ttk.Frame(self.root)
-        bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=(0, 5))
+        help_btn = ctk.CTkButton(bottom_frame, text="Help", command=self._show_help)
+        help_btn.grid(row=0, column=2, padx=10, pady=10)
 
-        self.sort_btn = ttk.Button(bottom_frame, text="Sort", command=self._start_sort_thread)
-        self.sort_btn.pack(side=tk.LEFT)
+        self.status_label = ctk.CTkLabel(bottom_frame, text="Ready", anchor="w")
+        self.status_label.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
-        help_btn = ttk.Button(bottom_frame, text="Help", command=self._show_help)
-        help_btn.pack(side=tk.RIGHT)
+        self.progress_bar = ctk.CTkProgressBar(self.root)
+        self.progress_bar.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.progress_bar.set(0)
 
     def _populate_mappings(self):
         mappings = utils.MappingUtils.get_available_mappings()
-        self.mapping_combo['values'] = mappings
+        self.mapping_combo.configure(values=mappings)
         last_mapping = self.settings.get(LAST_MAPPING_KEY)
         if last_mapping and last_mapping in mappings:
             self.mapping_combo.set(last_mapping)
         elif mappings:
             self.mapping_combo.set(mappings[0])
-        self._on_mapping_select(None)
-        self.mapping_combo.bind("<<ComboboxSelected>>", self._on_mapping_select)
+        self._on_mapping_select()
+        self.mapping_combo.configure(command=self._on_mapping_select)
 
-    def _on_mapping_select(self, event):
+    def _on_mapping_select(self, choice=None):
         selected_mapping = self.mapping_combo.get()
         if selected_mapping:
             self.mapping_path = os.path.join(MAPPINGS_DIR, selected_mapping)
             self.settings[LAST_MAPPING_KEY] = selected_mapping
             save_settings(self.settings)
 
+    def _update_folder_list(self):
+        self.folder_listbox.configure(state="normal")
+        self.folder_listbox.delete("1.0", "end")
+        if self.folders_to_sort:
+            self.folder_listbox.insert("1.0", "\n".join(self.folders_to_sort))
+        self.folder_listbox.configure(state="disabled")
+
     def _add_folder(self):
         folder_path = filedialog.askdirectory(mustexist=True, title="Select Folder to Sort")
-        if folder_path:
-            self.folder_listbox.insert(tk.END, folder_path)
-            self._update_watermark()
+        if folder_path and folder_path not in self.folders_to_sort:
+            self.folders_to_sort.append(folder_path)
+            self._update_folder_list()
 
     def _remove_folder(self):
-        selected_indices = list(self.folder_listbox.curselection())
-        for i in selected_indices[::-1]:
-            self.folder_listbox.delete(i)
-        self._update_watermark()
+        # Since CTkTextbox doesn't have selection, we'll remove the last added folder
+        if self.folders_to_sort:
+            removed = self.folders_to_sort.pop()
+            self.update_status(f"Removed: {os.path.basename(removed)}")
+            self._update_folder_list()
 
     def _handle_drop(self, event):
         paths = self.root.tk.splitlist(event.data)
         for item in paths:
-            if os.path.isdir(item):
-                self.folder_listbox.insert(tk.END, item)
-        self._update_watermark()
-
-    def _update_watermark(self):
-        if self.folder_listbox.size() > 0:
-            self.watermark_label.place_forget()
-        else:
-            self.watermark_label.place(relx=0.5, rely=0.5, anchor="center")
+            if os.path.isdir(item) and item not in self.folders_to_sort:
+                self.folders_to_sort.append(item)
+        self._update_folder_list()
 
     def _show_help(self):
         messagebox.showinfo(
@@ -162,7 +154,7 @@ class FileSorterGUI:
             "2. Use the 'Edit' button to define keywords and destination folders.\n"
             "3. Add folders to sort by clicking 'Add Folder' or by dragging them into the window.\n"
             "4. Choose your sorting options (e.g., 'Scan first page only').\n"
-            "5. Click 'Start Sorting' to begin."
+            "5. Click 'Sort' to begin."
         )
 
     def _open_mapping_editor(self):
@@ -170,26 +162,26 @@ class FileSorterGUI:
             selected = self.mapping_combo.get()
             self._populate_mappings()
             self.mapping_combo.set(selected)
+        # Note: The editor window will still use the old style.
         MappingEditor(self.root, on_save_callback=on_save_callback, mapping_path=self.mapping_path)
 
     def _start_sort_thread(self):
-        self.sort_btn.config(state="disabled")
-        self.status_label.config(text="Starting sort...")
-        self.progress_bar.config(mode="indeterminate")
+        self.sort_btn.configure(state="disabled")
+        self.status_label.configure(text="Starting sort...")
+        self.progress_bar.configure(mode="indeterminate")
         self.progress_bar.start()
         thread = threading.Thread(target=self._sort_files, daemon=True)
         thread.start()
 
     def _sort_files(self):
         mapping_path = self.mapping_path
-        folders = self.folder_listbox.get(0, tk.END)
         if not mapping_path or not os.path.isfile(mapping_path):
             self.root.after(0, utils.show_error, "Please select a valid mapping file.")
-            self.sort_btn.config(state="normal")
+            self.sort_btn.configure(state="normal")
             return
-        if not folders:
+        if not self.folders_to_sort:
             self.root.after(0, utils.show_error, "Please add at least one folder to sort.")
-            self.sort_btn.config(state="normal")
+            self.sort_btn.configure(state="normal")
             return
 
         try:
@@ -200,21 +192,23 @@ class FileSorterGUI:
             deep_audit = self.deep_audit.get()
             first_page_only = self.first_page_only.get()
             
-            sorter_obj.sort_files(folders, deep_audit=deep_audit, first_page_only=first_page_only)
+            sorter_obj.sort_files(self.folders_to_sort, deep_audit=deep_audit, first_page_only=first_page_only)
 
             self.root.after(0, messagebox.showinfo, "Success", "Files sorted successfully!")
         except Exception as e:
             self.root.after(0, utils.show_error, f"An error occurred during sorting:\n{e}")
         finally:
             def final_update():
-                self.sort_btn.config(state="normal")
-                self.status_label.config(text="Ready")
+                self.sort_btn.configure(state="normal")
+                self.status_label.configure(text="Ready")
                 self.progress_bar.stop()
-                self.progress_bar.config(mode="determinate")
-                self.progress_bar['value'] = 0
+                self.progress_bar.configure(mode="determinate")
+                self.progress_bar.set(0)
             self.root.after(0, final_update)
 
 def main():
+    # To use TkinterDnD2 with customtkinter, the root must be a TkinterDnD.Tk() instance.
+    # This combines the functionality of both libraries.
     root = TkinterDnD.Tk()
     app = FileSorterGUI(root)
     root.mainloop()

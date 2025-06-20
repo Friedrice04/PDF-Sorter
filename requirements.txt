@@ -2,3 +2,4 @@ tkinterdnd2
 PyMuPDF
 Pillow
 pytesseract
+custontkinter
