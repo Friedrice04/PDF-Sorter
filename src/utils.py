@@ -1,7 +1,51 @@
 import os
 import json
+import sys
 import tkinter as tk
 from tkinter import messagebox
+
+# --- Constants ---
+# Directory where mapping files are stored, relative to the src directory
+MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "mappings"))
+# Path to the settings file
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'settings.json')
+# Key for the last used mapping in the settings file
+LAST_MAPPING_KEY = "last_mapping"
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        # When running as a script, the base path is the project root.
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+def load_settings():
+    """
+    Load settings from the settings.json file.
+    """
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}  # Return empty settings if file is corrupt or unreadable
+    return {}
+
+
+def save_settings(settings):
+    """
+    Save settings to the settings.json file.
+    """
+    try:
+        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=4)
+    except IOError:
+        show_error("Could not save settings.")
 
 
 def show_error(message):
