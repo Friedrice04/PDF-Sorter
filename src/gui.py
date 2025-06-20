@@ -1,6 +1,7 @@
 import os
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
+import tkinter as tk # Imported for the context menu
 import threading
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -19,9 +20,8 @@ class FileSorterGUI:
         self.root.overrideredirect(True)
         self.root.geometry("550x480")
 
-        # Set a unique color and make it transparent to create rounded window corners.
-        # This works on Windows and some Linux/macOS systems.
-        TRANSPARENT_COLOR = '#000001' # A color unlikely to be used in the UI
+        # Set a unique color and make it transparent to create rounded window corners
+        TRANSPARENT_COLOR = '#000001'
         self.root.config(bg=TRANSPARENT_COLOR)
         self.root.wm_attributes("-transparentcolor", TRANSPARENT_COLOR)
 
@@ -44,20 +44,53 @@ class FileSorterGUI:
         self._offset_x = 0
         self._offset_y = 0
 
+        # Build widgets first, so we have a CTk widget to get theme colors from.
         self._build_widgets()
+        self._create_context_menu()
         self._populate_mappings()
 
     def update_status(self, message):
         self.root.after(0, self.status_label.configure, {"text": message})
 
+    def _create_context_menu(self):
+        """Creates the right-click context menu and styles it to match the theme."""
+        # Get colors from a CTk widget (main_container) instead of the root window.
+        bg_color = self.main_container._apply_appearance_mode(ctk.ThemeManager.theme["CTkFrame"]["fg_color"])
+        fg_color = self.main_container._apply_appearance_mode(ctk.ThemeManager.theme["CTkLabel"]["text_color"])
+        hover_color = self.main_container._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["hover_color"])
+        # The disabled text color is part of the CTkButton theme, not CTkLabel.
+        disabled_color = self.main_container._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["text_color_disabled"])
+
+        self.context_menu = tk.Menu(self.root, tearoff=0,
+            bg=bg_color,
+            fg=fg_color,
+            activebackground=hover_color,
+            activeforeground=fg_color,
+            disabledforeground=disabled_color,
+            relief="flat",
+            borderwidth=0
+        )
+        self.context_menu.add_command(label="Add Folder", command=self._add_folder)
+        self.context_menu.add_command(label="Remove Selected Folder", command=self._remove_folder)
+
+    def _show_context_menu(self, event):
+        """Shows the right-click menu and enables/disables items."""
+        # Disable 'Remove' if no folder is selected
+        if self.selected_folder_path:
+            self.context_menu.entryconfigure("Remove Selected Folder", state="normal")
+        else:
+            self.context_menu.entryconfigure("Remove Selected Folder", state="disabled")
+        
+        self.context_menu.tk_popup(event.x_root, event.y_root)
+
     def _build_widgets(self):
         # Main container with a border to create the window frame effect.
         # Padding is removed (padx=0, pady=0) to eliminate the white border.
-        main_container = ctk.CTkFrame(self.root, corner_radius=10)
-        main_container.pack(fill="both", expand=True, padx=0, pady=0)
+        self.main_container = ctk.CTkFrame(self.root, corner_radius=10)
+        self.main_container.pack(fill="both", expand=True, padx=0, pady=0)
 
         # --- Custom Title Bar ---
-        title_bar = ctk.CTkFrame(main_container, corner_radius=0)
+        title_bar = ctk.CTkFrame(self.main_container, corner_radius=0)
         title_bar.pack(fill="x")
         
         title_label = ctk.CTkLabel(title_bar, text="OCR File Sorter", font=ctk.CTkFont(weight="bold"))
@@ -75,7 +108,7 @@ class FileSorterGUI:
         title_label.bind("<B1-Motion>", self._do_move)
 
         # --- Main Content Area ---
-        content_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+        content_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
         content_frame.pack(fill="both", expand=True, padx=5, pady=5)
         content_frame.grid_columnconfigure(0, weight=1)
         content_frame.grid_rowconfigure(1, weight=1)
@@ -86,7 +119,7 @@ class FileSorterGUI:
         mapping_frame.grid_columnconfigure(1, weight=1)
         
         ctk.CTkLabel(mapping_frame, text="Mapping:").grid(row=0, column=0, padx=(10, 5), pady=10)
-        self.mapping_combo = ctk.CTkComboBox(mapping_frame, state="readonly")
+        self.mapping_combo = ctk.CTkComboBox(mapping_frame, state="readonly", border_width=0)
         self.mapping_combo.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
         
         edit_mapping_btn = ctk.CTkButton(mapping_frame, text="Edit", width=50, command=self._open_mapping_editor)
@@ -100,6 +133,7 @@ class FileSorterGUI:
         
         self.folder_list_frame = ctk.CTkScrollableFrame(main_frame, border_width=2)
         self.folder_list_frame.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="nsew")
+        self.folder_list_frame.bind("<Button-3>", self._show_context_menu)
 
         # Create a frame to hold the Add/Remove buttons for better alignment
         side_button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
@@ -185,7 +219,8 @@ class FileSorterGUI:
         self.folder_widgets.clear()
 
         for folder_path in self.folders_to_sort:
-            display_name = os.path.basename(folder_path)
+            # Display the full path instead of just the basename
+            display_name = folder_path
             folder_button = ctk.CTkButton(
                 self.folder_list_frame,
                 text=display_name,
@@ -193,6 +228,8 @@ class FileSorterGUI:
                 anchor="w",
                 command=lambda p=folder_path: self._on_folder_select(p)
             )
+            # Bind right-click to the button as well
+            folder_button.bind("<Button-3>", self._show_context_menu)
             folder_button.pack(fill="x", padx=5, pady=2)
             self.folder_widgets[folder_path] = folder_button
 
