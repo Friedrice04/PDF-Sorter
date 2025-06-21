@@ -16,7 +16,7 @@ Dependencies:
 import os
 import shutil
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox
+from tkinter import ttk, messagebox, simpledialog
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -45,6 +45,7 @@ class TemplateTree(ttk.Treeview):
             **kwargs: Additional arguments for ttk.Treeview.
         """
         super().__init__(master, **kwargs)
+        self.heading("#0", text="Template Folders", anchor="w")
         self.template_dir = template_dir
         self.on_folder_selected = on_folder_selected
 
@@ -56,35 +57,34 @@ class TemplateTree(ttk.Treeview):
             self.drop_target_register(DND_FILES)
             self.dnd_bind('<<Drop>>', self._on_drop)
 
-    def _populate_tree(self):
+    def _populate_tree(self, parent_id="", parent_path=""):
         """
         Populate the tree view with the current template directory structure.
         """
-        # Save expanded state
-        expanded = set()
-        def save_expanded(item):
-            if self.item(item, "open"):
-                expanded.add(self.item(item, "values")[0])
-            for child in self.get_children(item):
-                save_expanded(child)
-        for item in self.get_children():
-            save_expanded(item)
+        # Clear existing items before repopulating
+        for item in self.get_children(parent_id):
+            self.delete(item)
 
-        self.delete(*self.get_children())
-        if not self.template_dir or not os.path.exists(self.template_dir):
+        if not self.template_dir or not os.path.isdir(self.template_dir):
             return
 
-        def insert_nodes(parent, path):
-            for name in sorted(os.listdir(path)):
-                full_path = os.path.join(path, name)
-                if os.path.isdir(full_path):
-                    rel_path = os.path.relpath(full_path, self.template_dir)
-                    node = self.insert(parent, "end", text=name, values=(rel_path,))
-                    insert_nodes(node, full_path)
-                    if rel_path in expanded:
-                        self.item(node, open=True)
-        insert_nodes("", self.template_dir)
-        self.heading("#0", text=os.path.basename(self.template_dir))
+        # Add the root node if we are at the top level
+        if parent_id == "":
+            root_name = os.path.basename(self.template_dir)
+            root_id = self.insert("", "end", text=f" {root_name} (Root)", open=True, values=["."])
+            self._populate_tree(root_id, self.template_dir)
+            return
+
+        try:
+            # List only directories and sort them
+            for item_name in sorted(os.listdir(parent_path)):
+                abs_path = os.path.join(parent_path, item_name)
+                if os.path.isdir(abs_path):
+                    rel_path = os.path.relpath(abs_path, self.template_dir)
+                    child_id = self.insert(parent_id, "end", text=f" {item_name}", open=False, values=[rel_path])
+                    self._populate_tree(child_id, abs_path)
+        except FileNotFoundError:
+            pass # Ignore if a folder was deleted during refresh
 
     def _on_select(self, event):
         """
@@ -100,20 +100,17 @@ class TemplateTree(ttk.Treeview):
         """
         Prompt the user for a new folder name and add it to the selected folder or root.
         """
-        selected = self.selection()
-        parent_dir = self.template_dir
-        parent_node = ''
-        if selected:
-            parent_node = selected[0]
-            rel_path = self.item(parent_node, "values")[0]
-            parent_dir = os.path.join(self.template_dir, rel_path)
+        selected_item = self.selection()
+        parent_path = self.template_dir
+        if selected_item:
+            rel_path = self.item(selected_item[0], "values")[0]
+            parent_path = os.path.join(self.template_dir, rel_path)
+
         folder_name = simpledialog.askstring("New Folder", "Enter folder name:", parent=self)
         if folder_name:
-            new_folder_path = os.path.join(parent_dir, folder_name)
             try:
-                os.makedirs(new_folder_path, exist_ok=True)
+                os.makedirs(os.path.join(parent_path, folder_name))
                 self._populate_tree()
-                self._select_folder_by_path(os.path.relpath(new_folder_path, self.template_dir))
             except Exception as e:
                 messagebox.showerror("Error", f"Could not create folder:\n{e}", parent=self)
 
@@ -121,24 +118,22 @@ class TemplateTree(ttk.Treeview):
         """
         Delete the selected folder and all its contents after user confirmation.
         """
-        selected = self.selection()
-        if not selected:
+        selected_item = self.selection()
+        if not selected_item:
             messagebox.showwarning("No Selection", "Please select a folder to delete.", parent=self)
             return
-        node = selected[0]
-        rel_path = self.item(node, "values")[0]
-        abs_path = os.path.join(self.template_dir, rel_path)
-        if not os.path.isdir(abs_path):
-            messagebox.showerror("Error", "Selected path is not a folder.", parent=self)
+        
+        rel_path = self.item(selected_item[0], "values")[0]
+        if rel_path == ".":
+            messagebox.showwarning("Cannot Delete", "Cannot delete the root template folder.", parent=self)
             return
-        if os.listdir(abs_path):
-            if not messagebox.askyesno("Confirm Delete", "Folder is not empty. Delete anyway?", parent=self):
-                return
-        try:
-            shutil.rmtree(abs_path)
-            self._populate_tree()
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not delete folder:\n{e}", parent=self)
+
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{rel_path}' and all its contents?", parent=self):
+            try:
+                shutil.rmtree(os.path.join(self.template_dir, rel_path))
+                self._populate_tree()
+            except Exception as e:
+                messagebox.showerror("Error", f"Could not delete folder:\n{e}", parent=self)
 
     def _select_folder_by_path(self, rel_path):
         """

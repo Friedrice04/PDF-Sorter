@@ -5,10 +5,10 @@ import threading
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
-from . import sorter, utils
-from .mapping_editor.editor import MappingEditor
-from .utils import (
-    load_settings, save_settings, resource_path,
+from src import sorter, utils
+from src.mapping_editor.editor_gui import MappingEditor
+from src.utils import (
+    load_settings, save_settings,
     LAST_MAPPING_KEY, MAPPINGS_DIR
 )
 

@@ -7,100 +7,59 @@ from tkinter import messagebox
 # --- Constants ---
 SETTINGS_FILE = "settings.json"
 LAST_MAPPING_KEY = "last_mapping_file"
-MAPPINGS_DIR = os.path.join('src', 'mappings')
+MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "mappings"))
 
-# --- Utility Functions ---
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        # When running as a script, the base path is the project root.
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
+# --- Settings Functions ---
 def load_settings():
-    """
-    Load settings from the settings.json file.
-    """
-    if os.path.exists(SETTINGS_FILE):
-        try:
-            with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}  # Return empty settings if file is corrupt or unreadable
-    return {}
+    """Loads the application settings from settings.json."""
+    try:
+        with open(SETTINGS_FILE, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
 def save_settings(settings):
-    """
-    Save settings to the settings.json file.
-    """
-    try:
-        with open(SETTINGS_FILE, 'w') as f:
-            json.dump(settings, f, indent=4)
-    except Exception:
-        pass
+    """Saves the application settings to settings.json."""
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=4)
 
-def show_error(message):
-    """
-    Display an error message dialog.
-    """
-    messagebox.showerror("Error", message)
-
-# --- Utility Classes ---
 class MappingUtils:
+    """A utility class for handling mapping files."""
+
     @staticmethod
     def get_available_mappings():
-        """Scans the mappings directory and returns a list of .json mapping files."""
-        if not os.path.exists(MAPPINGS_DIR):
-            os.makedirs(MAPPINGS_DIR)
-            return []
-        
+        """Returns a sorted list of available .json mapping files."""
+        os.makedirs(MAPPINGS_DIR, exist_ok=True)
+        return sorted([f for f in os.listdir(MAPPINGS_DIR) if f.endswith(".json")])
+
+    @staticmethod
+    def is_valid_mapping_file(file_path):
+        """Checks if a file is a valid, non-empty JSON file."""
+        if not file_path or not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+            return False
         try:
-            # List files, filter for .json, and return just the filenames
-            mappings = [
-                f for f in os.listdir(MAPPINGS_DIR) 
-                if f.lower().endswith('.json') and os.path.isfile(os.path.join(MAPPINGS_DIR, f))
-            ]
-            return mappings
-        except Exception:
-            return [] # Return empty list on error
-
-    @staticmethod
-    def load_mapping(path):
-        """Loads a single mapping file."""
-        return MappingUtils.load_json_file(path)
-
-    @staticmethod
-    def save_mapping(path, mapping):
-        MappingUtils.save_json_file(path, mapping)
-
-    @staticmethod
-    def is_valid_mapping_file(path):
-        try:
-            mapping = MappingUtils.load_json_file(path)
-            return MappingUtils.validate_mapping(mapping)
-        except Exception:
+            with open(file_path, "r", encoding="utf-8") as f:
+                json.load(f)
+            return True
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return False
 
     @staticmethod
-    def get_mappings_folder():
-        # You can customize this as needed
-        folder = os.path.join(os.getcwd(), "mappings")
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        return folder
+    def load_mapping(file_path):
+        """Loads mapping data from a JSON file."""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
 
     @staticmethod
-    def list_mapping_files(folder):
-        return [f for f in os.listdir(folder) if f.endswith(".json")]
+    def save_mapping(file_path, data):
+        """Saves mapping data to a JSON file."""
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
 
-    @staticmethod
-    def show_error(msg):
-        from tkinter import messagebox
-        messagebox.showerror("Error", msg)
-
+# --- UI Helpers ---
 class ToolTip:
     """
     Create a tooltip for a given widget.
