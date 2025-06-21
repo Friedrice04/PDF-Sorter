@@ -2,7 +2,7 @@ import os
 import shutil
 import fitz  # PyMuPDF
 
-from . import utils
+from src import utils
 
 # Attempt to import OCR libraries. If they fail, OCR will be disabled.
 try:
