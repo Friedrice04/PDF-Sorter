@@ -1,6 +1,7 @@
 import os
 import tkinter as tk
 from tkinter import ttk
+import customtkinter as ctk
 
 from src import utils
 from src.utils import ToolTip
@@ -12,108 +13,189 @@ from src.mapping_editor.editor_actions import EditorActions
 
 MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
 
-class MappingEditor(tk.Toplevel):
+class MappingEditor(ctk.CTkToplevel):
     """
-    Main window for editing file sorting mappings.
+    Main window for editing file sorting mappings, styled to match the main GUI.
     This class is the 'View' in a Model-View-Controller architecture.
-    It builds the UI and delegates all logic and actions to other classes.
     """
     def __init__(self, master, on_save_callback=None, mapping_path=None):
         super().__init__(master)
-        self.title("Mapping Editor")
-        self.geometry("1000x600")
         self.on_save_callback = on_save_callback
 
-        # Instantiate Logic (Model) and Actions (Controller)
+        # --- Window Setup ---
+        self.geometry("1000x650")
+        self.overrideredirect(True) # Frameless
+
+        # Make window rounded
+        TRANSPARENT_COLOR = '#000001'
+        self.config(bg=TRANSPARENT_COLOR)
+        self.wm_attributes("-transparentcolor", TRANSPARENT_COLOR)
+
+        # For dragging the frameless window
+        self._offset_x = 0
+        self._offset_y = 0
+
+        # --- MVC Setup ---
         self.logic = EditorLogic()
         self.actions = EditorActions(self, self.logic)
 
+        # --- Build UI ---
         self._build_widgets()
+        self._style_treeviews()
         self.protocol("WM_DELETE_WINDOW", self.actions.on_close_window)
         self.bind_all("<ButtonRelease-1>", self.actions.on_drag_release)
 
-        # Initial load if a mapping path is provided
+        # --- Initial Load ---
         if mapping_path:
             self.logic.load_mapping_file(mapping_path)
             self.refresh_all(reload_files=True)
+        else:
+            # Still need to load the list of files even if none is pre-selected
+            self.update_mapping_file_list()
 
     def _build_widgets(self):
+        # Main container with a border to create the window frame effect.
+        self.main_container = ctk.CTkFrame(self, corner_radius=10)
+        self.main_container.pack(fill="both", expand=True, padx=0, pady=0)
+        self.main_container.grid_columnconfigure(0, weight=1)
+        self.main_container.grid_rowconfigure(1, weight=1)
+
+        # --- Custom Title Bar ---
+        self._build_title_bar()
+
+        # --- Main Content Area ---
+        content_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        content_frame.grid_columnconfigure(0, weight=1)
+        content_frame.grid_rowconfigure(1, weight=1)
+
         # --- Top frame for mapping file selection ---
-        file_frame = ttk.Frame(self)
-        file_frame.pack(fill="x", padx=10, pady=(10, 0))
+        file_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        file_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        file_frame.grid_columnconfigure(0, weight=1)
 
         self.mapping_file_var = tk.StringVar()
-        self.mapping_file_combo = ttk.Combobox(file_frame, textvariable=self.mapping_file_var, state="readonly")
-        self.mapping_file_combo.pack(side="left", fill="x", expand=True, padx=(0, 5), ipady=2, ipadx=4)
-        self.mapping_file_combo.bind("<<ComboboxSelected>>", self.actions.on_mapping_file_selected)
+        self.mapping_file_combo = ctk.CTkComboBox(file_frame, variable=self.mapping_file_var, state="readonly", command=self.actions.on_mapping_file_selected)
+        self.mapping_file_combo.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         ToolTip(self.mapping_file_combo, "Select a mapping JSON file to edit.")
 
-        search_btn = ttk.Button(file_frame, text="Search...", command=self.actions.on_search_mapping)
-        search_btn.pack(side="left")
+        search_btn = ctk.CTkButton(file_frame, text="Search...", width=80, command=self.actions.on_search_mapping)
+        search_btn.grid(row=0, column=1, padx=5)
         ToolTip(search_btn, "Search for a mapping JSON file by name.")
 
-        new_btn = ttk.Button(file_frame, text="New Mapping", command=self.actions.on_new_mapping)
-        new_btn.pack(side="left", padx=(5, 0))
+        new_btn = ctk.CTkButton(file_frame, text="New Mapping", width=100, command=self.actions.on_new_mapping)
+        new_btn.grid(row=0, column=2, padx=5)
         ToolTip(new_btn, "Create a new mapping file.")
 
-        # --- Main PanedWindow for resizable split view ---
-        paned = ttk.PanedWindow(self, orient="horizontal")
-        paned.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- Main Paned Area (using a grid) ---
+        paned_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        paned_frame.grid(row=1, column=0, sticky="nsew")
+        paned_frame.grid_columnconfigure(0, weight=3) # Left panel is larger
+        paned_frame.grid_columnconfigure(1, weight=2) # Right panel is smaller
+        paned_frame.grid_rowconfigure(0, weight=1)
 
-        # --- Left Panel: Mapping Table ---
-        self._build_left_panel(paned)
-
-        # --- Right Panel: Template Tree ---
-        self._build_right_panel(paned)
+        self._build_left_panel(paned_frame)
+        self._build_right_panel(paned_frame)
 
         # --- Bottom frame for Save/Cancel ---
-        bottom_frame = ttk.Frame(self)
-        bottom_frame.pack(fill="x", padx=10, pady=(0, 10))
-        save_btn = ttk.Button(bottom_frame, text="Save", command=self.actions.on_save)
-        save_btn.pack(side="right", padx=(5, 0))
-        cancel_btn = ttk.Button(bottom_frame, text="Cancel", command=self.actions.on_close_window)
+        bottom_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        bottom_frame.grid(row=2, column=0, sticky="e", pady=(10, 0))
+        
+        cancel_btn = ctk.CTkButton(bottom_frame, text="Close", command=self.actions.on_close_window)
         cancel_btn.pack(side="right")
+        save_btn = ctk.CTkButton(bottom_frame, text="Save", command=self.actions.on_save)
+        save_btn.pack(side="right", padx=(0, 10))
+
+    def _build_title_bar(self):
+        title_bar = ctk.CTkFrame(self.main_container, corner_radius=0, height=40)
+        title_bar.grid(row=0, column=0, sticky="ew")
+        
+        self.title_label = ctk.CTkLabel(title_bar, text="Mapping Editor", font=ctk.CTkFont(weight="bold"))
+        self.title_label.pack(side="left", padx=15, pady=10)
+        
+        close_button = ctk.CTkButton(title_bar, text="✕", width=30, height=30, command=self.actions.on_close_window)
+        close_button.pack(side="right", padx=5, pady=5)
+
+        title_bar.bind("<ButtonPress-1>", self._start_move)
+        title_bar.bind("<ButtonRelease-1>", self._stop_move)
+        title_bar.bind("<B1-Motion>", self._do_move)
+        self.title_label.bind("<ButtonPress-1>", self._start_move)
+        self.title_label.bind("<ButtonRelease-1>", self._stop_move)
+        self.title_label.bind("<B1-Motion>", self._do_move)
 
     def _build_left_panel(self, parent):
-        left_frame = ttk.Frame(parent)
-        parent.add(left_frame, weight=3)
-        ttk.Label(left_frame, text="Phrase / Keyword → Destination", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=5, pady=(0, 2))
+        left_frame = ctk.CTkFrame(parent)
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        left_frame.grid_rowconfigure(1, weight=1)
+        left_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(left_frame, text="Phrase / Keyword → Destination", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(5, 2))
         
         self.mapping_table = MappingTable(left_frame, on_item_drag=self.actions.on_item_drag_start)
-        self.mapping_table.pack(fill="both", expand=True)
+        self.mapping_table.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.mapping_table.bind("<B1-Motion>", lambda e: self.actions.on_drag_motion())
         self.mapping_table.bind("<Double-Button-1>", lambda e: self.actions.on_edit_rule())
         self._build_mapping_table_menu()
         self.mapping_table.bind("<Button-3>", self._show_mapping_table_menu)
         ToolTip(self.mapping_table, "Phrases and their destination folders. Drag a phrase onto a folder to assign.")
 
-        button_frame = ttk.Frame(left_frame)
-        button_frame.pack(fill="x", pady=(8, 0))
-        ttk.Button(button_frame, text="Add", command=self.actions.on_add_rule).pack(side="left", fill="x", expand=True, padx=(0, 5))
-        ttk.Button(button_frame, text="Remove", command=self.actions.on_remove_rule).pack(side="left", fill="x", expand=True, padx=(0, 5))
-        ttk.Button(button_frame, text="Move Up", command=lambda: self.actions.on_move_rule("up")).pack(side="left", fill="x", expand=True, padx=(0, 5))
-        ttk.Button(button_frame, text="Move Down", command=lambda: self.actions.on_move_rule("down")).pack(side="left", fill="x", expand=True)
+        button_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        button_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=(5, 10))
+        button_frame.grid_columnconfigure((0,1,2,3), weight=1)
+        ctk.CTkButton(button_frame, text="Add", command=self.actions.on_add_rule).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(button_frame, text="Remove", command=self.actions.on_remove_rule).grid(row=0, column=1, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(button_frame, text="Move Up", command=lambda: self.actions.on_move_rule("up")).grid(row=0, column=2, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(button_frame, text="Move Down", command=lambda: self.actions.on_move_rule("down")).grid(row=0, column=3, sticky="ew")
 
     def _build_right_panel(self, parent):
-        right_frame = ttk.Frame(parent)
-        parent.add(right_frame, weight=2)
-        ttk.Label(right_frame, text="Template Directory Structure", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=5, pady=(0, 2))
+        right_frame = ctk.CTkFrame(parent)
+        right_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        right_frame.grid_rowconfigure(1, weight=1)
+        right_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(right_frame, text="Template Directory Structure", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(5, 2))
 
         self.template_tree = TemplateTree(right_frame, self.logic.template_dir)
-        self.template_tree.pack(fill="both", expand=True, padx=(0, 5))
+        self.template_tree.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self._build_template_tree_menu()
         self.template_tree.bind("<Button-3>", self._show_template_tree_menu)
         ToolTip(self.template_tree, "Visualize and manage the template directory structure.")
 
-        template_btn_frame = ttk.Frame(right_frame)
-        template_btn_frame.pack(fill="x", pady=(8, 0))
-        ttk.Button(template_btn_frame, text="New Folder", command=self.template_tree.add_folder).pack(side="left", padx=(0, 5))
-        ttk.Button(template_btn_frame, text="Delete Folder", command=self.template_tree.delete_folder).pack(side="left", padx=(0, 5))
-        ttk.Button(template_btn_frame, text="Refresh", command=self.refresh_template_tree).pack(side="left")
-        ttk.Button(template_btn_frame, text="Auto-Build Tree", command=self.actions.on_autobuild_tree).pack(side="left", padx=(5, 0))
+        btn_frame = ctk.CTkFrame(right_frame, fg_color="transparent")
+        btn_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=(5, 10))
+        btn_frame.grid_columnconfigure((0,1,2,3), weight=1)
+        ctk.CTkButton(btn_frame, text="New Folder", command=self.template_tree.add_folder).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="Delete Folder", command=self.template_tree.delete_folder).grid(row=0, column=1, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="Refresh", command=self.refresh_template_tree).grid(row=0, column=2, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(btn_frame, text="Auto-Build", command=self.actions.on_autobuild_tree).grid(row=0, column=3, sticky="ew")
+
+    def _style_treeviews(self):
+        """Applies CTk theme colors to the ttk.Treeview widgets."""
+        bg_color = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkFrame"]["fg_color"])
+        text_color = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkLabel"]["text_color"])
+        header_bg = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["fg_color"])
+        select_bg = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["hover_color"])
+
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("Treeview", background=bg_color, foreground=text_color, fieldbackground=bg_color, borderwidth=0)
+        style.map("Treeview", background=[("selected", select_bg)])
+        style.configure("Treeview.Heading", background=header_bg, foreground=text_color, relief="flat")
+        style.map("Treeview.Heading", background=[("active", select_bg)])
+        self.update_idletasks()
+
+    def _build_menu(self):
+        """Helper to create a themed tk.Menu."""
+        bg = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkFrame"]["fg_color"])
+        fg = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkLabel"]["text_color"])
+        hover = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["hover_color"])
+        disabled = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["text_color_disabled"])
+        
+        return tk.Menu(self, tearoff=0, bg=bg, fg=fg, activebackground=hover,
+                       activeforeground=fg, disabledforeground=disabled, relief="flat")
 
     def _build_mapping_table_menu(self):
-        self.mapping_table_menu = tk.Menu(self, tearoff=0)
+        self.mapping_table_menu = self._build_menu()
         self.mapping_table_menu.add_command(label="Add Rule", command=self.actions.on_add_rule)
         self.mapping_table_menu.add_command(label="Edit Rule", command=self.actions.on_edit_rule)
         self.mapping_table_menu.add_command(label="Remove Rule", command=self.actions.on_remove_rule)
@@ -128,7 +210,7 @@ class MappingEditor(tk.Toplevel):
         self.mapping_table_menu.tk_popup(event.x_root, event.y_root)
 
     def _build_template_tree_menu(self):
-        self.template_tree_menu = tk.Menu(self, tearoff=0)
+        self.template_tree_menu = self._build_menu()
         self.template_tree_menu.add_command(label="Add Folder", command=self.template_tree.add_folder)
         self.template_tree_menu.add_command(label="Rename Folder", command=self.actions.on_rename_template_folder)
         self.template_tree_menu.add_command(label="Delete Folder", command=self.template_tree.delete_folder)
@@ -142,10 +224,23 @@ class MappingEditor(tk.Toplevel):
         self.template_tree_menu.entryconfig("Delete Folder", state="normal" if is_item_selected else "disabled")
         self.template_tree_menu.tk_popup(event.x_root, event.y_root)
 
-    # --- UI Update Methods (called by Actions) ---
+    # --- Window Dragging Methods ---
+    def _start_move(self, event):
+        self._offset_x = event.x
+        self._offset_y = event.y
 
+    def _stop_move(self, event):
+        self._offset_x = None
+        self._offset_y = None
+
+    def _do_move(self, event):
+        if self._offset_x is not None and self._offset_y is not None:
+            x = self.winfo_pointerx() - self._offset_x
+            y = self.winfo_pointery() - self._offset_y
+            self.geometry(f"+{x}+{y}")
+
+    # --- UI Update Methods (called by Actions) ---
     def refresh_all(self, reload_files=False):
-        """Refresh the entire view based on the current logic state."""
         if reload_files:
             self.update_mapping_file_list()
         self.update_mapping_file_display(self.logic.mapping_path)
@@ -161,16 +256,15 @@ class MappingEditor(tk.Toplevel):
         self.template_tree._populate_tree()
 
     def set_dirty(self, is_dirty):
-        """Update window title to show unsaved changes state."""
         title = "Mapping Editor"
         if is_dirty:
-            self.title(f"{title} *")
+            self.title_label.configure(text=f"{title} *")
         else:
-            self.title(title)
+            self.title_label.configure(text=title)
         self.logic.is_dirty = is_dirty
 
     def update_mapping_file_list(self):
-        self.mapping_file_combo["values"] = utils.MappingUtils.get_available_mappings()
+        self.mapping_file_combo.configure(values=utils.MappingUtils.get_available_mappings())
 
     def update_mapping_file_display(self, mapping_path):
         self.mapping_file_var.set(os.path.basename(mapping_path) if mapping_path else "")
@@ -180,16 +274,15 @@ class MappingEditor(tk.Toplevel):
         y = self.template_tree.winfo_pointery() - self.template_tree.winfo_rooty()
         item = self.template_tree.identify_row(y)
         if item:
-            self.template_tree.tag_configure("drag_highlight", background="#a1e3f7")
+            highlight_color = self._apply_appearance_mode(ctk.ThemeManager.theme["CTkButton"]["hover_color"])
+            self.template_tree.tag_configure("drag_highlight", background=highlight_color)
             self.template_tree.item(item, tags=("drag_highlight",))
 
     def clear_drag_highlight(self):
-        def _clear_recursive(item):
+        # Find all items with the tag and remove it
+        tagged_items = self.template_tree.tag_has("drag_highlight")
+        for item in tagged_items:
             self.template_tree.item(item, tags=())
-            for child in self.template_tree.get_children(item):
-                _clear_recursive(child)
-        for item in self.template_tree.get_children(""):
-            _clear_recursive(item)
 
     # --- Drag and drop logic for assigning destination folders ---
 

@@ -38,7 +38,7 @@ class EditorActions:
         if not self._check_unsaved_changes(): return
         
         dialog = NewMappingDialog(self.view, "New Mapping")
-        if not dialog.mapping_name: return
+        if not dialog.result: return # Check if the user clicked OK
 
         mapping_path = os.path.join(MAPPINGS_DIR, dialog.mapping_name + ".json")
         if os.path.exists(mapping_path):
@@ -130,7 +130,7 @@ class EditorActions:
         """Handle adding a new mapping rule."""
         destinations = self.logic.get_all_destinations()
         dialog = PatternDestDialog(self.view, "Add Rule", self.logic.template_dir, destinations)
-        if not dialog.phrase or not dialog.dest: return
+        if not dialog.result: return # Check if the user clicked OK
 
         success, message = self.logic.add_rule(dialog.phrase, dialog.dest)
         if success:
@@ -149,7 +149,7 @@ class EditorActions:
         phrase, dest = self.view.mapping_table.item(selected_item[0], "values")
         destinations = self.logic.get_all_destinations()
         dialog = PatternDestDialog(self.view, "Edit Rule", self.logic.template_dir, destinations, initial_phrase=phrase, initial_dest=dest)
-        if not dialog.phrase or not dialog.dest: return
+        if not dialog.result: return # Check if the user clicked OK
 
         success, message = self.logic.update_rule(phrase, dialog.phrase, dialog.dest)
         if success:
