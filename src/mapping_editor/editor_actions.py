@@ -130,9 +130,9 @@ class EditorActions:
         """Handle adding a new mapping rule."""
         destinations = self.logic.get_all_destinations()
         dialog = PatternDestDialog(self.view, "Add Rule", self.logic.template_dir, destinations)
-        if not dialog.phrase or not dialog.dest: return
+        if not dialog.result: return # Check if the user clicked OK
 
-        success, message = self.logic.add_rule(dialog.phrase, dialog.dest)
+        success, message = self.logic.add_rule(dialog.phrase, dialog.name, dialog.dest)
         if success:
             self.view.refresh_mapping_table()
             self.view.set_dirty(True)
@@ -146,12 +146,13 @@ class EditorActions:
             messagebox.showwarning("No Selection", "Please select a mapping to edit.", parent=self.view)
             return
         
-        phrase, dest = self.view.mapping_table.item(selected_item[0], "values")
+        name, phrase, dest = self.view.mapping_table.item(selected_item[0], "values")
         destinations = self.logic.get_all_destinations()
-        dialog = PatternDestDialog(self.view, "Edit Rule", self.logic.template_dir, destinations, initial_phrase=phrase, initial_dest=dest)
-        if not dialog.phrase or not dialog.dest: return
+        dialog = PatternDestDialog(self.view, "Edit Rule", self.logic.template_dir, destinations, 
+                                   initial_name=name, initial_phrase=phrase, initial_dest=dest)
+        if not dialog.result: return # Check if the user clicked OK
 
-        success, message = self.logic.update_rule(phrase, dialog.phrase, dialog.dest)
+        success, message = self.logic.update_rule(phrase, dialog.phrase, dialog.name, dialog.dest)
         if success:
             self.view.refresh_mapping_table()
             self.view.set_dirty(True)
@@ -216,8 +217,9 @@ class EditorActions:
             dest_item = self.view.template_tree.identify_row(y)
             rel_path = self.view.template_tree.item(dest_item, "values")[0] if dest_item else "."
             
-            if self.logic.mappings[self._dragged_item] != rel_path:
-                self.logic.mappings[self._dragged_item] = rel_path
+            # Update the destination in the rule's dictionary
+            if self.logic.mappings[self._dragged_item]["dest"] != rel_path:
+                self.logic.mappings[self._dragged_item]["dest"] = rel_path
                 self.view.refresh_mapping_table()
                 self.view.set_dirty(True)
         

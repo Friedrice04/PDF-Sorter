@@ -7,11 +7,13 @@ class MappingTable(ttk.Treeview):
     Handles the start of drag-and-drop operations.
     """
     def __init__(self, master, on_item_drag, **kwargs):
-        super().__init__(master, columns=("phrase", "destination"), show="headings", **kwargs)
+        super().__init__(master, columns=("name", "phrase", "destination"), show="headings", **kwargs)
+        self.heading("name", text="Rule Name")
         self.heading("phrase", text="Phrase / Keyword")
         self.heading("destination", text="Destination Folder")
-        self.column("phrase", width=250, stretch=tk.YES)
-        self.column("destination", width=250, stretch=tk.YES)
+        self.column("name", width=200, stretch=tk.NO, anchor="w")
+        self.column("phrase", width=250, stretch=tk.YES, anchor="w")
+        self.column("destination", width=250, stretch=tk.YES, anchor="w")
 
         self.on_item_drag = on_item_drag
         self._dragged_item = None
@@ -22,8 +24,8 @@ class MappingTable(ttk.Treeview):
         """Identifies the item under the cursor and initiates the drag."""
         item_id = self.identify_row(event.y)
         if item_id:
-            # Get the phrase (the unique key) from the selected row
-            self._dragged_item = self.item(item_id, "values")[0]
+            # Get the phrase (the unique key) from the selected row's values
+            self._dragged_item = self.item(item_id, "values")[1] # Index 1 is the phrase
             # Call the action handler with only the required argument
             self.on_item_drag(self._dragged_item)
 
@@ -34,5 +36,7 @@ class MappingTable(ttk.Treeview):
             self.delete(item)
         # Insert the new mapping rules
         if mappings:
-            for phrase, dest in mappings.items():
-                self.insert("", "end", values=(phrase, dest))
+            for phrase, rule in mappings.items():
+                name = rule.get("name", "")
+                dest = rule.get("dest", "")
+                self.insert("", "end", values=(name, phrase, dest))

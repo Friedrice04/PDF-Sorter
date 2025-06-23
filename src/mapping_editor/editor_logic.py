@@ -38,20 +38,22 @@ class EditorLogic:
         except Exception as e:
             return False, f"Could not save mapping:\n{e}"
 
-    def add_rule(self, phrase, dest):
+    def add_rule(self, phrase, name, dest):
         """Adds a new mapping rule."""
         if phrase in self.mappings:
             return False, "This phrase or keyword already exists."
-        self.mappings[phrase] = dest
+        self.mappings[phrase] = {"name": name, "dest": dest}
         self.is_dirty = True
         return True, None
 
-    def update_rule(self, old_phrase, new_phrase, new_dest):
+    def update_rule(self, old_phrase, new_phrase, new_name, new_dest):
         """Updates an existing mapping rule."""
         if new_phrase != old_phrase and new_phrase in self.mappings:
             return False, "This phrase or keyword already exists."
-        del self.mappings[old_phrase]
-        self.mappings[new_phrase] = new_dest
+        # Remove old one if phrase changed
+        if old_phrase in self.mappings and new_phrase != old_phrase:
+            del self.mappings[old_phrase]
+        self.mappings[new_phrase] = {"name": new_name, "dest": new_dest}
         self.is_dirty = True
         return True, None
 
@@ -96,13 +98,14 @@ class EditorLogic:
             return False, f"Could not rename folder:\n{e}"
 
         # Update mappings
-        for phrase, dest in self.mappings.items():
+        for phrase, rule in self.mappings.items():
+            dest = rule.get("dest", ".")
             if not dest or dest == ".": continue
             norm_dest = os.path.normpath(dest)
             norm_old = os.path.normpath(old_rel_path)
             if norm_dest == norm_old or norm_dest.startswith(norm_old + os.sep):
                 new_dest = os.path.normpath(norm_dest.replace(norm_old, new_rel_path, 1))
-                self.mappings[phrase] = new_dest
+                self.mappings[phrase]["dest"] = new_dest
         
         self.is_dirty = True
         return True, None
@@ -111,7 +114,8 @@ class EditorLogic:
         """Creates template folders based on destinations in the mappings."""
         if not self.template_dir: return 0
         created = 0
-        for dest in set(self.mappings.values()):
+        destinations = {rule.get("dest", ".") for rule in self.mappings.values()}
+        for dest in destinations:
             if not dest or dest == ".": continue
             folder_path = os.path.join(self.template_dir, dest)
             if not os.path.exists(folder_path):
