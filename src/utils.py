@@ -46,31 +46,36 @@ class MappingUtils:
 
     @staticmethod
     def load_mapping(file_path):
-        """Loads mapping data from a JSON file, migrating old format if necessary."""
+        """
+        Loads mapping data from a JSON file, separating rules from config.
+        Also handles migrating old format if necessary.
+        """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
+            config = data.pop("_config", {})  # Extract config, or use empty dict
+            rules = data # The rest is rules
+
             # Check for old format and migrate.
-            # The first value in the dict will be a string in the old format,
-            # and a dictionary in the new format.
-            if data and isinstance(next(iter(data.values())), str):
-                migrated_data = {}
-                for phrase, dest in data.items():
-                    # Create a default name from the phrase for backward compatibility
+            if rules and isinstance(next(iter(rules.values())), str):
+                migrated_rules = {}
+                for phrase, dest in rules.items():
                     default_name = phrase.replace("_", " ").replace("-", " ").title()
-                    migrated_data[phrase] = {"name": default_name, "dest": dest}
-                return migrated_data
-            
-            return data
+                    migrated_rules[phrase] = {"name": default_name, "dest": dest}
+                return config, migrated_rules
+
+            return config, rules
         except (FileNotFoundError, json.JSONDecodeError, StopIteration):
-            return {}
+            return {}, {}
 
     @staticmethod
-    def save_mapping(file_path, data):
-        """Saves mapping data to a JSON file."""
+    def save_mapping(file_path, config, data):
+        """Saves mapping config and data to a JSON file."""
+        # Combine config and rules for saving
+        full_data = {"_config": config, **data}
         with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
+            json.dump(full_data, f, indent=4)
 
 # --- UI Helpers ---
 class ToolTip:

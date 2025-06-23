@@ -10,11 +10,14 @@ Author: Your Name
 
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox
-import customtkinter as ctk
+from tkinter import ttk, filedialog, messagebox
 
-class BaseDialog(ctk.CTkToplevel):
-    """A base class for creating modal dialogs using customtkinter."""
+# This should be defined once, perhaps in a constants file or passed in.
+# For now, defining it here to make the dialog self-contained.
+MAPPINGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
+
+class BaseDialog(tk.Toplevel):
+    """A base class for creating modal dialogs using standard tkinter widgets."""
     def __init__(self, parent, title=None):
         super().__init__(parent)
         self.transient(parent)
@@ -24,11 +27,9 @@ class BaseDialog(ctk.CTkToplevel):
         self.parent = parent
         self.result = None
         
-        self.grid_columnconfigure(0, weight=1)
-        
-        body_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.initial_focus = self.body(body_frame)
-        body_frame.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
+        body = ttk.Frame(self)
+        self.initial_focus = self.body(body)
+        body.pack(padx=15, pady=15)
         
         self.buttonbox()
         
@@ -46,16 +47,17 @@ class BaseDialog(ctk.CTkToplevel):
         pass
 
     def buttonbox(self):
-        box = ctk.CTkFrame(self, fg_color="transparent")
-        box.grid(row=1, column=0, sticky="e", padx=15, pady=(0, 15))
+        box = ttk.Frame(self)
         
-        ok_btn = ctk.CTkButton(box, text="OK", width=80, command=self.ok)
-        ok_btn.pack(side=tk.LEFT, padx=(0, 5))
-        cancel_btn = ctk.CTkButton(box, text="Cancel", width=80, command=self.cancel)
-        cancel_btn.pack(side=tk.LEFT)
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
         
         self.bind("<Return>", self.ok)
         self.bind("<Escape>", self.cancel)
+        
+        box.pack()
 
     def ok(self, event=None):
         if not self.validate():
@@ -81,33 +83,38 @@ class NewMappingDialog(BaseDialog):
     """Dialog for creating a new mapping file."""
     def body(self, master):
         master.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(master, text="New Mapping Name:").grid(row=0, column=0, sticky="w", pady=2, padx=(0,10))
-        self.name_entry = ctk.CTkEntry(master, width=300)
+        ttk.Label(master, text="New Mapping Name:").grid(row=0, column=0, sticky="w", pady=2, padx=(0,10))
+        self.name_entry = ttk.Entry(master, width=40)
         self.name_entry.grid(row=0, column=1, sticky="ew", pady=2)
 
         self.import_var = tk.BooleanVar()
-        self.import_check = ctk.CTkCheckBox(master, text="Import from existing mapping", variable=self.import_var, command=self.toggle_import)
+        self.import_check = ttk.Checkbutton(master, text="Import from existing mapping", variable=self.import_var, command=self.toggle_import)
         self.import_check.grid(row=1, columnspan=2, sticky="w", pady=(10, 0))
 
+        # Frame for the import widgets
+        import_frame = ttk.Frame(master)
+        import_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=(20, 0))
+        import_frame.column_configure(0, weight=1)
+
         self.import_path_var = tk.StringVar()
-        self.import_entry = ctk.CTkEntry(master, textvariable=self.import_path_var, width=250, state="disabled")
-        self.import_entry.grid(row=2, column=0, columnspan=2, sticky="ew", pady=2, padx=(20, 85))
-        self.browse_btn = ctk.CTkButton(master, text="...", width=30, command=self.browse_import, state="disabled")
-        self.browse_btn.grid(row=2, column=1, sticky="e", pady=2)
+        self.import_entry = ttk.Entry(import_frame, textvariable=self.import_path_var, state="disabled")
+        self.import_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        self.browse_btn = ttk.Button(import_frame, text="Browse...", command=self.browse_import, state="disabled")
+        self.browse_btn.grid(row=0, column=1, sticky="w")
         
         return self.name_entry
 
     def toggle_import(self):
         state = "normal" if self.import_var.get() else "disabled"
-        self.import_entry.configure(state=state)
-        self.browse_btn.configure(state=state)
+        self.import_entry.config(state=state)
+        self.browse_btn.config(state=state)
 
     def browse_import(self):
         path = filedialog.askopenfilename(
             parent=self,
             title="Select Mapping File to Import",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            initialdir=os.path.abspath(os.path.join(os.path.dirname(__file__), "../mappings"))
+            initialdir=MAPPINGS_DIR
         )
         if path:
             self.import_path_var.set(path)
@@ -139,19 +146,19 @@ class PatternDestDialog(BaseDialog):
     def body(self, master):
         master.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(master, text="Rule Name (for easy identification):").pack(anchor="w", pady=(0, 2))
-        self.name_entry = ctk.CTkEntry(master, width=350)
-        self.name_entry.pack(fill="x", expand=True, pady=(0, 10))
+        ttk.Label(master, text="Rule Name (for easy identification):").grid(row=0, column=0, sticky="w", pady=(0, 2))
+        self.name_entry = ttk.Entry(master, width=50)
+        self.name_entry.grid(row=1, column=0, sticky="ew", pady=(0, 10))
         self.name_entry.insert(0, self.initial_name)
 
-        ctk.CTkLabel(master, text="Phrase/Keyword (must be unique):").pack(anchor="w", pady=(0, 2))
-        self.phrase_entry = ctk.CTkEntry(master, width=350)
-        self.phrase_entry.pack(fill="x", expand=True, pady=(0, 10))
+        ttk.Label(master, text="Phrase/Keyword (must be unique):").grid(row=2, column=0, sticky="w", pady=(0, 2))
+        self.phrase_entry = ttk.Entry(master, width=50)
+        self.phrase_entry.grid(row=3, column=0, sticky="ew", pady=(0, 10))
         self.phrase_entry.insert(0, self.initial_phrase)
 
-        ctk.CTkLabel(master, text="Destination Folder:").pack(anchor="w", pady=(0, 2))
-        self.dest_combo = ctk.CTkComboBox(master, values=self.destinations, width=350)
-        self.dest_combo.pack(fill="x", expand=True)
+        ttk.Label(master, text="Destination Folder:").grid(row=4, column=0, sticky="w", pady=(0, 2))
+        self.dest_combo = ttk.Combobox(master, values=self.destinations, width=48)
+        self.dest_combo.grid(row=5, column=0, sticky="ew")
         if self.initial_dest in self.destinations:
             self.dest_combo.set(self.initial_dest)
         

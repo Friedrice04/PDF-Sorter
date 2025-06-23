@@ -9,6 +9,8 @@ class EditorLogic:
     """
     def __init__(self):
         self.mappings = {}
+        self.config = {}
+        self.naming_scheme = ""
         self.mapping_path = None
         self.template_dir = None
         self.is_dirty = False
@@ -21,22 +23,34 @@ class EditorLogic:
             os.makedirs(self.template_dir)
         
         if utils.MappingUtils.is_valid_mapping_file(self.mapping_path):
-            self.mappings = utils.MappingUtils.load_mapping(self.mapping_path)
+            self.config, self.mappings = utils.MappingUtils.load_mapping(self.mapping_path)
+            self.naming_scheme = self.config.get("naming_scheme", "{rule_name} - {original_filename}{ext}")
         else:
             self.mappings = {}
+            self.config = {}
+            self.naming_scheme = "{rule_name} - {original_filename}{ext}" # Default for new files
         self.is_dirty = False
         return True
 
     def save_mappings(self):
-        """Saves the current mappings to the file."""
+        """Saves the current mappings and config to the file."""
         if not self.mapping_path:
             return False, "No mapping file selected."
         try:
-            utils.MappingUtils.save_mapping(self.mapping_path, self.mappings)
+            # Update config with the current naming scheme before saving
+            self.config["naming_scheme"] = self.naming_scheme
+            utils.MappingUtils.save_mapping(self.mapping_path, self.config, self.mappings)
             self.is_dirty = False
             return True, "Mapping saved successfully."
         except Exception as e:
             return False, f"Could not save mapping:\n{e}"
+
+    def set_naming_scheme(self, scheme):
+        """Updates the naming scheme and marks the file as dirty."""
+        if self.naming_scheme != scheme:
+            self.naming_scheme = scheme
+            self.is_dirty = True
+        return True, None
 
     def add_rule(self, phrase, name, dest):
         """Adds a new mapping rule."""

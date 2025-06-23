@@ -38,7 +38,7 @@ class EditorActions:
         if not self._check_unsaved_changes(): return
         
         dialog = NewMappingDialog(self.view, "New Mapping")
-        if not dialog.mapping_name: return
+        if not dialog.result: return # Check if the user clicked OK
 
         mapping_path = os.path.join(MAPPINGS_DIR, dialog.mapping_name + ".json")
         if os.path.exists(mapping_path):

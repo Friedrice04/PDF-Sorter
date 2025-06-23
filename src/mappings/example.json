@@ -1,10 +1,37 @@
 {
-    "INVOICE": "2024 Invoices",
-    "Statement of Account": "Statements",
-    "Purchase Order": "Purchase Orders",
-    "CONFIDENTIAL": "Confidential",
-    "PAYROLL SUMMARY": "Payroll",
-    "Final Report": "Reports",
-    "Receipt": "Receipts",
-    "Application Form": "Applications"
+    "_config": {
+        "naming_scheme": "{rule_name}_{date} - {original_filename}{ext}"
+    },
+    "INVOICE": {
+        "name": "Invoice",
+        "dest": "2024 Invoices"
+    },
+    "Statement of Account": {
+        "name": "Statement Of Account",
+        "dest": "Statements"
+    },
+    "Purchase Order": {
+        "name": "Purchase Order",
+        "dest": "Purchase Orders"
+    },
+    "CONFIDENTIAL": {
+        "name": "Confidential",
+        "dest": "Confidential"
+    },
+    "PAYROLL SUMMARY": {
+        "name": "Payroll Summary",
+        "dest": "Payroll"
+    },
+    "Final Report": {
+        "name": "Final Report",
+        "dest": "Reports"
+    },
+    "Receipt": {
+        "name": "Receipt",
+        "dest": "Receipts"
+    },
+    "Application Form": {
+        "name": "Application Form",
+        "dest": "Applications"
+    }
 }

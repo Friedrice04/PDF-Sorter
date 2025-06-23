@@ -1,6 +1,7 @@
 import os
 import shutil
 import fitz  # PyMuPDF
+from datetime import datetime
 
 from src import utils
 
@@ -130,38 +131,62 @@ class Sorter:
                 return destination
         return None
 
+    def _generate_new_filename(self, rule, original_path):
+        """Generates a new filename based on the naming scheme."""
+        now = datetime.now()
+        original_name, original_ext = os.path.splitext(os.path.basename(original_path))
+
+        placeholders = {
+            "{rule_name}": rule.get("name", "Unknown Rule"),
+            "{phrase}": rule.get("phrase", "unknown_phrase"),
+            "{original_filename}": original_name,
+            "{date}": now.strftime("%Y%m%d"),
+            "{time}": now.strftime("%H-%M-%S"),
+            "{ext}": original_ext,
+        }
+
+        new_name = self.naming_scheme
+        for placeholder, value in placeholders.items():
+            new_name = new_name.replace(placeholder, value)
+            
+        # Sanitize filename to remove invalid characters
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            new_name = new_name.replace(char, '')
+            
+        return new_name
+
     def sort_file(self, file_path):
         """
-        Sorts a single file: reads its text, finds the matching destination,
-        and moves it to the appropriate folder.
+        Sorts a single file by reading its content, finding a match,
+        renaming it, and moving it to the destination.
         """
-        if self.status_callback:
-            self.status_callback(f"Sorting file: {file_path}")
-
-        text = self.read_pdf_text(file_path)
-        if not text:
-            return
-
         try:
-            destination_folder = self.find_matching_destination(text)
+            text = self.read_pdf_text(file_path)
+            if not text:
+                return "skipped", f"Could not extract text from {os.path.basename(file_path)}"
 
-            if destination_folder:
-                destination_path = os.path.join(self.template_dir, destination_folder)
-                os.makedirs(destination_path, exist_ok=True)
-                shutil.move(file_path, os.path.join(destination_path, os.path.basename(file_path)))
-                if self.status_callback:
-                    self.status_callback(f"Moved: {os.path.basename(file_path)} -> {destination_folder}")
+            rule = self.find_matching_destination(text)
+            if rule and rule.get("dest"):
+                destination_folder = os.path.join(self.template_dir, rule["dest"])
+                os.makedirs(destination_folder, exist_ok=True)
+
+                new_filename = self._generate_new_filename(rule, file_path)
+                dest_path = os.path.join(destination_folder, new_filename)
+
+                # Handle potential file conflicts by adding a counter
+                counter = 1
+                base, ext = os.path.splitext(dest_path)
+                while os.path.exists(dest_path):
+                    dest_path = f"{base} ({counter}){ext}"
+                    counter += 1
+
+                shutil.move(file_path, dest_path)
+                return "sorted", f"Sorted '{os.path.basename(file_path)}' to '{os.path.relpath(dest_path, self.template_dir)}'"
             else:
-                if self.status_callback:
-                    self.status_callback(f"No match found for: {os.path.basename(file_path)}")
-                    # Print the NORMALIZED text for easier debugging
-                    debug_text = ' '.join(text.split()).lower()
-                    if len(debug_text) > 1000:
-                        debug_text = debug_text[:1000] + "..."
-                    self.status_callback(f"--- Normalized Text Read from {os.path.basename(file_path)} ---\n{debug_text}\n---------------------------------")
+                return "unmatched", f"No match found for {os.path.basename(file_path)}"
         except Exception as e:
-            if self.status_callback:
-                self.status_callback(f"Error processing {os.path.basename(file_path)}: {e}")
+            return "error", f"Error processing {os.path.basename(file_path)}: {e}"
 
     def sort_files(self, folders_to_sort, deep_audit=False, first_page_only=False):
         total_files_sorted = 0
