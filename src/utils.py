@@ -46,11 +46,24 @@ class MappingUtils:
 
     @staticmethod
     def load_mapping(file_path):
-        """Loads mapping data from a JSON file."""
+        """Loads mapping data from a JSON file, migrating old format if necessary."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+                data = json.load(f)
+            
+            # Check for old format and migrate.
+            # The first value in the dict will be a string in the old format,
+            # and a dictionary in the new format.
+            if data and isinstance(next(iter(data.values())), str):
+                migrated_data = {}
+                for phrase, dest in data.items():
+                    # Create a default name from the phrase for backward compatibility
+                    default_name = phrase.replace("_", " ").replace("-", " ").title()
+                    migrated_data[phrase] = {"name": default_name, "dest": dest}
+                return migrated_data
+            
+            return data
+        except (FileNotFoundError, json.JSONDecodeError, StopIteration):
             return {}
 
     @staticmethod
