@@ -11,8 +11,8 @@ from pathlib import Path
 def build_executable():
     """Build the executable using PyInstaller with all necessary options."""
     
-    # Get the current directory
-    current_dir = Path.cwd()
+    # Get the project root directory (parent of scripts)
+    current_dir = Path.cwd().parent
     
     # Define paths
     main_script = current_dir / "src" / "main.py"
@@ -39,9 +39,9 @@ def build_executable():
         '--name=OCR File Sorter',
         '--onefile',
         '--noconsole',
-        '--distpath=./dist',
-        '--workpath=./build',
-        '--specpath=./build',
+        '--distpath=../dist',
+        '--workpath=../build',
+        '--specpath=../build',
         # Add data files - use absolute paths
         f'--add-data={current_dir}/src/icons/*;src/icons',
         f'--add-data={current_dir}/src/mappings/example.json;src/mappings',

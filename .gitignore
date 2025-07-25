@@ -15,6 +15,10 @@ EXE/
 *.deb
 *.rpm
 
+# Keep installer files for distribution
+!dist/*Installer.exe
+!dist/*Installer.py
+
 # ================
 # Python
 # ================
@@ -118,7 +122,7 @@ Icon
 # Project Specific
 # ================
 # User settings and configurations
-settings.json
+config/settings.json
 setttigns.json  # Keep typo for backward compatibility
 config.json
 

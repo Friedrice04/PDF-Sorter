@@ -35,8 +35,8 @@ echo Running PDF tests...
 echo.
 
 REM Use the virtual environment Python
-if exist "..\..\\.venv\\Scripts\\python.exe" (
-    "..\..\\.venv\\Scripts\\python.exe" run_pdf_tests.py --verbose --save-results
+if exist "..\\..\\..\.venv\\Scripts\\python.exe" (
+    "..\\..\\..\.venv\\Scripts\\python.exe" run_pdf_tests.py --verbose --save-results
 ) else (
     echo No virtual environment found. Using system Python...
     python run_pdf_tests.py --verbose --save-results

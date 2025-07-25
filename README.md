@@ -1,136 +1,173 @@
-# OCR File Sorter
+# 📄 OCR File Sorter
 
-**OCR File Sorter** is a user-friendly desktop application for sorting PDF files into folders based on their content. It uses Optical Character Recognition (OCR) to find keywords or phrases inside documents and sorts them according to customizable mapping rules.
+A powerful, intelligent PDF sorting application that automatically organizes documents based on their content using OCR technology.
 
----
+## 🚀 Quick Start
 
-## Features
+### For Users
+1. Download the installer: `OCR_File_Sorter_Installer.exe`
+2. Run the installer and follow the setup wizard
+3. Start sorting your PDFs!
 
-- **Content-Based Sorting:**  
-  Reads text from within PDF documents to determine the correct destination folder.
-- **Mapping Editor:**  
-  Create, edit, and search mapping files (`.json`) that define which phrases/keywords map to which folders.
-- **Template Directory Structure:**  
-  Visualize, add, delete, and rename folders in your template directory.  
-  Drag-and-drop folders from Windows Explorer to add their structure (folders only, no files).
-- **Phrase-to-Folder Assignment:**  
-  Assign phrases to destination folders using a table. Drag phrases onto folders in the tree to set destinations.
-- **Auto-Build Template Tree:**  
-  Automatically create the template folder structure based on all destinations in your mapping.
-- **Mapping Import:**  
-  Create a new mapping by importing from an existing mapping file.
-- **Persistent Last Mapping:**  
-  The last used mapping is remembered and auto-selected on next launch.
-- **File Sorting:**  
-  Select one or more folders to sort. Drag-and-drop folders into the app or use the "Add Folder" button.
-- **Deep Audit:**  
-  Optionally, after sorting, recursively find and move misplaced PDF files to their correct folders based on content.
-- **Help and Tooltips:**  
-  Built-in help and tooltips for all major controls.
+### For Developers
+```bash
+# Clone and setup
+git clone https://github.com/Friedrice04/PDF-Sorter.git
+cd PDF-Sorter
 
----
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate
 
-## Getting Started
+# Install dependencies
+pip install -r config/requirements.txt
 
-### Requirements
-
-- Python 3.8+
-- [tkinterdnd2](https://github.com/pmgagne/tkinterdnd2)
-- [PyMuPDF](https://pypi.org/project/PyMuPDF/)
-
-### Running the App
-
-1. **Install dependencies:**
-   ```
-   pip install -r requirements.txt
-   ```
-
-2. **Start the application:**
-   ```
-   python -m src.main
-   ```
-
----
-
-## Usage
-
-### Main Window
-
-- **Select Mapping:**  
-  Choose a mapping file from the dropdown. The last used mapping is auto-selected.
-- **Edit/Create Mapping:**  
-  Opens the Mapping Editor to modify or create mapping files (phrase-to-folder rules) and template folders.
-- **Folders to Sort:**  
-  Add folders containing PDFs to be sorted. Use the button or drag-and-drop from Explorer.
-- **Deep Audit:**  
-  Enable to recursively move misplaced PDFs after sorting based on their content.
-- **Sort Files:**  
-  Starts the sorting process for PDFs in the selected folders.
-
-### Mapping Editor
-
-- **Mapping File Selection:**  
-  Dropdown and search for mapping files. Create new mappings or import from existing ones.
-- **Phrase Table:**  
-  Add, edit, remove, and reorder phrase-to-folder rules. Drag phrases onto folders in the tree to assign destinations.
-- **Template Directory Structure:**  
-  Visualize and manage the folder structure.  
-  - Right-click for add/rename/delete.
-  - Drag folders from Explorer to add their structure (folders only, no files).
-  - Use "Auto-Build Tree" to create folders for all mapping destinations.
-- **Save:**  
-  Saves changes and returns to the main window.
-
----
-
-## File Structure
-
-```
-src/
-  gui.py                # Main GUI logic
-  main.py               # Entry point
-  sorter.py             # File sorting and OCR logic
-  utils.py              # Utilities and tooltips
-  settings.json         # Stores last used mapping
-  mapping_editor/
-    editor.py           # Mapping editor window
-    dialogs.py          # Dialogs for mapping/template editing
-    mapping_table.py    # Phrase-to-folder table widget
-    template_tree.py    # Template folder tree widget
-  mappings/
-    *.json              # Mapping files
-    *_template/         # Template folder structures
-  icons/
-    *.ico               # Application icons
+# Run the application
+python src/main.py
 ```
 
+## 📁 Project Structure
+
+```
+PDF-Sorter/
+├── 📂 src/                    # Main application code
+│   ├── main.py               # Application entry point
+│   ├── gui.py                # User interface
+│   ├── sorter.py             # Core sorting logic
+│   ├── utils.py              # Utility functions
+│   ├── 📂 icons/             # Application icons
+│   ├── 📂 mappings/          # Sorting rule examples
+│   └── 📂 mapping_editor/    # Mapping editor module
+├── 📂 tests/                 # Test suite
+│   ├── 📂 test_runner/       # PDF testing framework
+│   └── ...                   # Unit and integration tests
+├── 📂 scripts/               # Build and utility scripts
+│   ├── build.bat            # Simple build script
+│   ├── build_complete.bat   # Complete build with installer
+│   ├── build_exe.py         # PyInstaller build script
+│   └── create_installer.py  # Installer creation script
+├── 📂 config/                # Configuration files
+│   ├── requirements.txt     # Runtime dependencies
+│   ├── requirements-build.txt # Build dependencies
+│   └── requirements-dev.txt # Development dependencies
+├── 📂 docs/                  # Documentation
+│   ├── DISTRIBUTION_GUIDE.md # Distribution instructions
+│   └── INSTALLER_README.md  # Installer technical details
+├── 📂 build/                 # Build artifacts (ignored)
+├── 📂 dist/                  # Distribution files
+└── build.bat                 # Root-level build script
+```
+
+## ✨ Features
+
+### 🤖 **Intelligent PDF Processing**
+- **Text Extraction**: Direct PDF text reading with OCR fallback
+- **Pattern Matching**: Flexible phrase-based sorting rules
+- **OCR Support**: Handles scanned documents with Tesseract
+- **Robust Parsing**: Handles OCR quirks and text variations
+
+### 🎯 **Smart Sorting**
+- **Custom Mappings**: Create your own sorting rules
+- **Template System**: Predefined folder structures
+- **Batch Processing**: Sort multiple files at once
+- **File Naming**: Configurable output file naming schemes
+
+### 🖥️ **User-Friendly Interface**
+- **Drag & Drop**: Easy file selection
+- **Progress Tracking**: Real-time sorting progress
+- **Visual Feedback**: Clear status updates and error messages
+- **Mapping Editor**: Built-in rule editor with preview
+
+### 🔧 **Professional Features**
+- **Comprehensive Testing**: PDF testing framework included
+- **Easy Distribution**: Single-file installer with dependencies
+- **Cross-Platform**: Windows focus with portable codebase
+- **Extensible**: Modular architecture for easy enhancement
+
+## 🛠️ Building
+
+### Quick Build
+```bash
+# Build everything (application + installer)
+build.bat
+```
+
+### Manual Build Steps
+```bash
+# 1. Install build dependencies
+pip install -r config/requirements-build.txt
+
+# 2. Build main application
+cd scripts
+python build_exe.py
+
+# 3. Create installer (optional)
+python create_installer.py
+```
+
+### Output Files
+- `dist/OCR File Sorter.exe` - Main application
+- `dist/OCR_File_Sorter_Installer.exe` - Complete installer
+
+## 🧪 Testing
+
+### Run Tests
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Test PDF sorting specifically
+cd tests/test_runner
+python run_pdf_tests.py --verbose
+```
+
+### PDF Testing Framework
+The included test runner lets you easily test PDF sorting:
+1. Add PDFs to `tests/test_runner/input_pdfs/`
+2. Add mapping files to `tests/test_runner/test_mappings/`
+3. Run `run_pdf_tests.py` to see where each PDF would be sorted
+
+## 📋 Requirements
+
+### Runtime
+- **OS**: Windows 10/11 (64-bit)
+- **Python**: 3.8+ (for source)
+- **Dependencies**: See `config/requirements.txt`
+
+### Optional
+- **Tesseract OCR**: For scanned PDF support (auto-installed with installer)
+
+## 🎯 Use Cases
+
+- **Document Management**: Organize invoices, contracts, reports
+- **Office Automation**: Sort incoming documents by type
+- **Archive Organization**: Clean up document collections
+- **Workflow Integration**: Part of larger document processing pipelines
+
+## 📝 License
+
+This project is licensed under the terms specified in LICENCE.txt.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+## 📚 Documentation
+
+- [Distribution Guide](docs/DISTRIBUTION_GUIDE.md) - Complete distribution instructions
+- [Installer README](docs/INSTALLER_README.md) - Installer technical details
+- [Test Runner Guide](tests/test_runner/README.md) - PDF testing framework
+
+## 🆘 Support
+
+- Check the documentation in the `docs/` folder
+- Review test examples in `tests/test_runner/`
+- Open an issue for bugs or feature requests
+
 ---
 
-## Notes
-
-- **Mappings:**  
-  Mapping files are JSON objects where the key is the phrase to search for (case-insensitive) and the value is the destination folder:
-  ```json
-  {
-    "INVOICE": "Invoices",
-    "Purchase Order": "Purchase Orders"
-  }
-  ```
-- **Template Folders:**  
-  Each mapping file has a corresponding `_template` folder for its folder structure.
-- **Drag-and-Drop:**  
-  Drag folders from Explorer to the template tree to add their structure (folders only, no files).
-
----
-
-## Troubleshooting
-
-- If the application doesn't start, ensure all dependencies from `requirements.txt` are installed.
-- If drag-and-drop does not work, ensure `tkinterdnd2` is installed correctly.
-- Sorting only applies to `.pdf` files. Other files will be ignored.
-
----
-
-## Author
-
-  Henry Dowd
+**Transform your document chaos into organized bliss!** 📄✨
