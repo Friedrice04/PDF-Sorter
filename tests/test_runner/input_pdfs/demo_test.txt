@@ -1,0 +1,17 @@
+
+This is a demo file to test the PDF Test Runner system.
+
+Key features tested:
+- Text extraction and processing
+- Phrase matching with multiple mappings  
+- Detailed result reporting
+- Batch processing capabilities
+- Performance metrics tracking
+
+The actual system works with real PDF files, but this demo shows
+the reporting and analysis capabilities.
+
+Demo phrases for testing:
+- Employee Questionnaire (should match HR mapping)
+- Invoice details (should match finance mapping)
+- Training Record information

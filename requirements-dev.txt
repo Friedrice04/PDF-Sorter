@@ -1,0 +1,6 @@
+# Development dependencies for testing and development
+pytest>=7.0.0
+pytest-mock>=3.10.0
+
+# Include runtime dependencies
+-r requirements.txt

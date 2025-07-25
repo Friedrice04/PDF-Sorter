@@ -1,0 +1,46 @@
+{
+    "IBAN": {
+        "name": "Iban",
+        "dest": "01 Pay"
+    },
+    "Pay Path Mandate Form": {
+        "name": "Pay Path Mandate Form",
+        "dest": "01 Pay"
+    },
+    "Local Government Shared Services Cantre": {
+        "name": "Local Government Shared Services Cantre",
+        "dest": "02 Superannuation\\Scheme Documentation"
+    },
+    "Employee Questionaire": {
+        "name": "Employee Questionaire",
+        "dest": "03 Personnel\\Personal Details"
+    },
+    "Decleration Form for all those working with children": {
+        "name": "Decleration Form For All Those Working With Children",
+        "dest": "03 Personnel\\Recruitment"
+    },
+    "Terms & Conditions of Employment": {
+        "name": "Terms & Conditions Of Employment",
+        "dest": "03 Personnel\\Recruitment"
+    },
+    "Candidate Information Booklet": {
+        "name": "Candidate Information Booklet",
+        "dest": "03 Personnel\\Recruitment"
+    },
+    "ASC10": {
+        "name": "Asc10",
+        "dest": "03 Personnel\\Recruitment"
+    },
+    "Declaration under Section 51": {
+        "name": "Declaration Under Section 51",
+        "dest": "03 Personnel\\Recruitment"
+    },
+    "OHMI": {
+        "name": "Ohmi",
+        "dest": "04 Time & Attendance\\Sick\\Medicals"
+    },
+    "Record o Training": {
+        "name": "Record O Training",
+        "dest": "05 Training"
+    }
+}

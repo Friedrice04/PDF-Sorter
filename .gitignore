@@ -1,0 +1,191 @@
+# ============================================
+# PDF Sorter Project - Git Ignore Rules
+# ============================================
+
+# ================
+# Build & Distribution
+# ================
+build/
+dist/
+EXE/
+*.spec
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# ================
+# Python
+# ================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller files
+*.manifest
+
+# Unit test / coverage reports
+.pytest_cache/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+cover/
+
+# ================
+# Virtual Environments
+# ================
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ================
+# IDE & Editors
+# ================
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# PyCharm
+.idea/
+*.swp
+*.swo
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ================
+# Operating System
+# ================
+# Windows
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ================
+# Project Specific
+# ================
+# User settings and configurations
+settings.json
+setttigns.json  # Keep typo for backward compatibility
+config.json
+
+# Test outputs and temporary files
+tests/sorted/
+tests/test_pdfs_temp/
+tests/temp_*
+tests/test_runner/results/*.json
+tests/test_runner/results/*.txt
+tests/test_runner/input_pdfs/*.pdf
+!tests/test_runner/input_pdfs/.gitkeep
+*.tmp
+*.temp
+
+# User mappings (keep examples)
+src/mappings/*
+!src/mappings/example.json
+!src/mappings/example_template/
+!src/mappings/HR*.json
+
+# Logs
+*.log
+logs/
+debug.log
+error.log
+
+# OCR temporary files
+ocr_temp/
+*.tiff
+*.tif
+
+# PDF processing temporary files
+pdf_temp/
+extracted_*
+
+# Backup files
+*.bak
+*.backup
+*~
+*.orig
+
+# ================
+# Security & Sensitive Data
+# ================
+# API keys and secrets
+.env.local
+.env.*.local
+secrets.json
+api_keys.txt
+credentials.json
+
+# Personal test data
+personal_pdfs/
+private_mappings/
+confidential/
+
+# ================
+# Miscellaneous
+# ================
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Documentation build
+docs/_build/
+site/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
