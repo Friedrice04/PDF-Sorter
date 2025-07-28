@@ -1,29 +1,5 @@
-@echo offREM Check if viREM Activate virtual environment
-echo ActivaREM Build the main application
-python build_exe.py
-
-REM Check if build was successful
-if not exist "..\\dist\\OCR File Sorter.exe" (virtual environment...
-call "..\\.venv\\Scripts\\activate.bat"
-
-REM Check if PyInstaller is installed
-python -c "import PyInstaller" 2>nul
-if errorlevel 1 (
-    echo PyInstaller not found. Installing build dependencies...
-    pip install -r "../config/requirements-build.txt"
-    if errorlevel 1 (
-        echo Failed to install build dependencies!
-        pause
-        exit /b 1
-    )
-)nt exists
-if not exist "..\\.venv\\Scripts\\activate.bat" (
-    echo Error: Virtual environment not found!
-    echo Please create a virtual environment first with: python -m venv .venv
-    echo Then install build dependencies with: pip install -r config/requirements-build.txt
-    pause
-    exit /b 1
-)mplete build script for OCR File Sorter with single-file installer
+@echo off
+REM Complete build script for OCR File Sorter with single-file installer
 REM This script creates both the main application and a complete installer
 
 echo ========================================
@@ -32,23 +8,23 @@ echo ========================================
 echo.
 
 REM Check if virtual environment exists
-if not exist ".venv\Scripts\activate.bat" (
+if not exist "..\\.venv\\Scripts\\activate.bat" (
     echo Error: Virtual environment not found!
     echo Please create a virtual environment first with: python -m venv .venv
-    echo Then install build dependencies with: pip install -r requirements-build.txt
+    echo Then install build dependencies with: pip install -r config/requirements-build.txt
     pause
     exit /b 1
 )
 
 REM Activate virtual environment
 echo Activating virtual environment...
-call .venv\Scripts\activate.bat
+call "..\\.venv\\Scripts\\activate.bat"
 
 REM Check if PyInstaller is installed
 python -c "import PyInstaller" 2>nul
 if errorlevel 1 (
     echo PyInstaller not found. Installing build dependencies...
-    pip install -r requirements-build.txt
+    pip install -r "../config/requirements-build.txt"
     if errorlevel 1 (
         echo Failed to install build dependencies!
         pause
@@ -75,7 +51,7 @@ REM Build the main application
 python build_exe.py
 
 REM Check if build was successful
-if not exist "dist\OCR File Sorter.exe" (
+if not exist "..\\dist\\OCR File Sorter.exe" (
     echo.
     echo ========================================
     echo MAIN APPLICATION BUILD FAILED!
@@ -92,7 +68,7 @@ echo ========================================
 echo.
 
 REM Create the single-file installer
-python create_installer.py
+python installer.py --build
 
 REM Check if installer was created
 if exist "..\\dist\\OCR_File_Sorter_Installer.exe" (
@@ -109,9 +85,10 @@ if exist "..\\dist\\OCR_File_Sorter_Installer.exe" (
     echo 🚀 For distribution, use: OCR_File_Sorter_Installer.exe
     echo    This installer includes:
     echo    - OCR File Sorter application
-    echo    - Automatic Tesseract OCR installation
+    echo    - User-specific Tesseract OCR installation
     echo    - Desktop shortcuts and Start Menu entries
-    echo    - Automatic PATH configuration
+    echo    - User PATH configuration
+    echo    - No administrator privileges required
     echo.
     
     REM Show file sizes

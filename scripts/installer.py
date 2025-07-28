@@ -1,33 +1,51 @@
+#!/usr/bin/env python3
 """
-Single File Installer for OCR File Sorter
-This creates a self-contained installer that includes:
-1. The OCR File Sorter executable
-2. Tesseract OCR installation
-3. Automatic setup and configuration
+OCR File Sorter - Self-Contained Installer
+This single file can work as both:
+1. A build script to embed the application data
+2. The final installer with embedded application
+
+Usage:
+  python installer.py --build    # Build mode: embed application data
+  python installer.py           # Install mode: run the installer GUI
 """
 
 import os
 import sys
 import subprocess
 import tempfile
-import zipfile
 import shutil
 import urllib.request
-import json
+import base64
 from pathlib import Path
 import winreg
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, filedialog
 import threading
-import time
+import argparse
 
+# =============================================================================
+# EMBEDDED APPLICATION DATA (will be replaced during build)
+# =============================================================================
+EMBEDDED_APP_DATA = None  # This will be replaced with actual base64 data
+
+# =============================================================================
+# INSTALLER CONFIGURATION
+# =============================================================================
+class InstallerConfig:
+    TESSERACT_URL = "https://github.com/UB-Mannheim/tesseract/releases/download/v5.3.3.20231005/tesseract-ocr-w64-setup-5.3.3.20231005.exe"
+    DEFAULT_INSTALL_DIR = Path.home() / "AppData" / "Local" / "OCR File Sorter"
+    APP_NAME = "OCR File Sorter"
+    INSTALLER_TITLE = "OCR File Sorter Installer"
+
+# =============================================================================
+# INSTALLER GUI AND LOGIC
+# =============================================================================
 class OCRFileSorterInstaller:
     """Main installer class for OCR File Sorter and dependencies."""
     
     def __init__(self):
-        self.install_dir = Path.home() / "OCR File Sorter"
-        self.tesseract_url = "https://github.com/UB-Mannheim/tesseract/releases/download/v5.3.3.20231005/tesseract-ocr-w64-setup-5.3.3.20231005.exe"
-        self.tesseract_installer = None
+        self.install_dir = InstallerConfig.DEFAULT_INSTALL_DIR
         self.progress_var = None
         self.status_var = None
         self.root = None
@@ -35,7 +53,7 @@ class OCRFileSorterInstaller:
     def create_gui(self):
         """Create the installer GUI."""
         self.root = tk.Tk()
-        self.root.title("OCR File Sorter Installer")
+        self.root.title(InstallerConfig.INSTALLER_TITLE)
         self.root.geometry("500x400")
         self.root.resizable(False, False)
         
@@ -48,17 +66,17 @@ class OCRFileSorterInstaller:
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Title
-        title_label = ttk.Label(main_frame, text="OCR File Sorter Installer", 
+        title_label = ttk.Label(main_frame, text=InstallerConfig.INSTALLER_TITLE, 
                                font=('Arial', 16, 'bold'))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
         
         # Description
-        desc_text = """This installer will set up OCR File Sorter and all required dependencies:
+        desc_text = f"""This installer will set up {InstallerConfig.APP_NAME} for the current user:
 
-• OCR File Sorter application
-• Tesseract OCR engine for document processing
+• {InstallerConfig.APP_NAME} application
+• Tesseract OCR engine for document processing (user-specific)
 • Desktop shortcuts and file associations
-• Automatic PATH configuration
+• User PATH configuration
 
 Installation Directory:"""
         
@@ -93,7 +111,7 @@ Installation Directory:"""
         start_cb.grid(row=1, column=0, sticky=tk.W)
         
         self.install_tesseract_var = tk.BooleanVar(value=True)
-        tesseract_cb = ttk.Checkbutton(options_frame, text="Install Tesseract OCR (required for scanned PDFs)", 
+        tesseract_cb = ttk.Checkbutton(options_frame, text="Install Tesseract OCR for current user (required for scanned PDFs)", 
                                      variable=self.install_tesseract_var)
         tesseract_cb.grid(row=2, column=0, sticky=tk.W)
         
@@ -127,7 +145,6 @@ Installation Directory:"""
         
     def browse_directory(self):
         """Browse for installation directory."""
-        from tkinter import filedialog
         directory = filedialog.askdirectory(initialdir=self.dir_var.get())
         if directory:
             self.dir_var.set(directory)
@@ -174,28 +191,36 @@ Installation Directory:"""
         temp_dir = Path(tempfile.gettempdir())
         tesseract_installer = temp_dir / "tesseract_installer.exe"
         
-        if not self.download_file(self.tesseract_url, tesseract_installer, "Tesseract OCR"):
+        if not self.download_file(InstallerConfig.TESSERACT_URL, tesseract_installer, "Tesseract OCR"):
             return False
         
         try:
-            # Run Tesseract installer silently
+            # Run Tesseract installer silently to user-specific location
             self.update_progress(35, "Installing Tesseract OCR...")
             
-            # Try silent install first
+            # User-specific Tesseract installation directory
+            user_tesseract_path = Path.home() / "AppData" / "Local" / "Tesseract-OCR"
+            
+            # Try silent install to user directory first
             result = subprocess.run([
                 str(tesseract_installer), 
                 '/VERYSILENT', 
                 '/NORESTART',
-                '/DIR=C:\\Program Files\\Tesseract-OCR'
+                f'/DIR={user_tesseract_path}'
             ], capture_output=True)
             
             if result.returncode != 0:
-                # If silent install fails, try interactive
+                # If user-specific install fails, try interactive
                 self.update_progress(35, "Running Tesseract installer (follow prompts)...")
                 result = subprocess.run([str(tesseract_installer)], capture_output=True)
+                # Default to checking both possible locations
+                tesseract_path = Path("C:/Program Files/Tesseract-OCR")
+                if not tesseract_path.exists():
+                    tesseract_path = user_tesseract_path
+            else:
+                tesseract_path = user_tesseract_path
             
             # Add Tesseract to PATH
-            tesseract_path = Path("C:/Program Files/Tesseract-OCR")
             if tesseract_path.exists():
                 self.add_to_path(str(tesseract_path))
             
@@ -214,7 +239,24 @@ Installation Directory:"""
                 pass
     
     def add_to_path(self, directory):
-        """Add directory to system PATH."""
+        """Add directory to user PATH (preferred) with system PATH fallback."""
+        try:
+            # Try user PATH first (preferred for user-specific installation)
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment",
+                              0, winreg.KEY_ALL_ACCESS) as key:
+                try:
+                    current_path, _ = winreg.QueryValueEx(key, "PATH")
+                except FileNotFoundError:
+                    current_path = ""
+                
+                if directory not in current_path:
+                    new_path = current_path + ";" + directory if current_path else directory
+                    winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path)
+                    return  # Successfully added to user PATH
+        except Exception:
+            pass  # Try system PATH as fallback
+        
+        # Fallback to system PATH if user PATH modification fails
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, 
                               r"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
@@ -224,20 +266,16 @@ Installation Directory:"""
                     new_path = current_path + ";" + directory
                     winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path)
         except Exception:
-            # If we can't modify system PATH, try user PATH
-            try:
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment",
-                                  0, winreg.KEY_ALL_ACCESS) as key:
-                    try:
-                        current_path, _ = winreg.QueryValueEx(key, "PATH")
-                    except FileNotFoundError:
-                        current_path = ""
-                    
-                    if directory not in current_path:
-                        new_path = current_path + ";" + directory if current_path else directory
-                        winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path)
-            except Exception:
-                pass  # PATH modification failed, but not critical
+            pass  # PATH modification failed, but not critical
+    
+    def get_embedded_app_data(self):
+        """Get embedded application data."""
+        if EMBEDDED_APP_DATA is None:
+            return None
+        try:
+            return base64.b64decode(EMBEDDED_APP_DATA)
+        except Exception as e:
+            raise Exception(f"Failed to decode embedded application data: {e}")
     
     def extract_application(self):
         """Extract the OCR File Sorter application."""
@@ -255,7 +293,7 @@ Installation Directory:"""
             self.update_progress(60, "Extracting application files...")
             
             # Extract application files
-            app_exe_path = self.install_dir / "OCR File Sorter.exe"
+            app_exe_path = self.install_dir / f"{InstallerConfig.APP_NAME}.exe"
             with open(app_exe_path, 'wb') as f:
                 f.write(app_data)
             
@@ -273,19 +311,19 @@ Installation Directory:"""
     def create_shortcuts(self):
         """Create desktop and start menu shortcuts."""
         try:
-            app_exe = self.install_dir / "OCR File Sorter.exe"
+            app_exe = self.install_dir / f"{InstallerConfig.APP_NAME}.exe"
             
             if self.desktop_shortcut_var.get():
                 self.update_progress(80, "Creating desktop shortcut...")
                 desktop = Path.home() / "Desktop"
-                shortcut_path = desktop / "OCR File Sorter.lnk"
+                shortcut_path = desktop / f"{InstallerConfig.APP_NAME}.lnk"
                 self.create_shortcut(str(app_exe), str(shortcut_path))
             
             if self.start_menu_var.get():
                 self.update_progress(85, "Adding to Start Menu...")
                 start_menu = Path.home() / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs"
                 start_menu.mkdir(parents=True, exist_ok=True)
-                shortcut_path = start_menu / "OCR File Sorter.lnk"
+                shortcut_path = start_menu / f"{InstallerConfig.APP_NAME}.lnk"
                 self.create_shortcut(str(app_exe), str(shortcut_path))
             
             self.update_progress(90, "Shortcuts created successfully")
@@ -319,7 +357,7 @@ Installation Directory:"""
                 f.write(f'cd /d "{Path(target).parent}"\n')
                 f.write(f'start "" "{target}"\n')
                 
-        except Exception as e:
+        except Exception:
             # If all else fails, create a simple launcher script
             try:
                 script_path = Path(shortcut_path).with_suffix('.py')
@@ -330,12 +368,6 @@ Installation Directory:"""
                     f.write(f'subprocess.run([r"{target}"])\n')
             except:
                 pass  # Give up on shortcuts if nothing works
-    
-    def get_embedded_app_data(self):
-        """Get embedded application data."""
-        # This would be replaced with actual embedded data
-        # For now, return None to indicate no embedded data
-        return None
     
     def create_uninstaller(self):
         """Create an uninstaller."""
@@ -348,7 +380,7 @@ from pathlib import Path
 import winreg
 
 def remove_from_path(directory):
-    """Remove directory from PATH."""
+    """Remove directory from user PATH."""
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment",
                           0, winreg.KEY_ALL_ACCESS) as key:
@@ -367,22 +399,27 @@ def main():
     install_dir = Path("{self.install_dir}")
     
     # Remove shortcuts
-    desktop = Path.home() / "Desktop" / "OCR File Sorter.lnk"
+    desktop = Path.home() / "Desktop" / "{InstallerConfig.APP_NAME}.lnk"
     if desktop.exists():
         desktop.unlink()
     
-    start_menu = Path.home() / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/OCR File Sorter.lnk"
+    start_menu = Path.home() / "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/{InstallerConfig.APP_NAME}.lnk"
     if start_menu.exists():
         start_menu.unlink()
     
     # Remove from PATH
     remove_from_path(str(install_dir))
     
+    # Also remove user-specific Tesseract from PATH if it exists
+    user_tesseract_path = Path.home() / "AppData" / "Local" / "Tesseract-OCR"
+    if user_tesseract_path.exists():
+        remove_from_path(str(user_tesseract_path))
+    
     # Remove installation directory
     if install_dir.exists():
         shutil.rmtree(install_dir)
     
-    print("OCR File Sorter has been uninstalled.")
+    print("{InstallerConfig.APP_NAME} has been uninstalled.")
     input("Press Enter to exit...")
 
 if __name__ == "__main__":
@@ -425,9 +462,9 @@ if __name__ == "__main__":
                 self.update_progress(100, "Installation completed successfully!")
                 
                 messagebox.showinfo("Installation Complete", 
-                                  f"OCR File Sorter has been installed successfully!\n\n"
+                                  f"{InstallerConfig.APP_NAME} has been installed successfully!\n\n"
                                   f"Installation directory: {self.install_dir}\n\n"
-                                  f"You can now start using OCR File Sorter from the desktop shortcut "
+                                  f"You can now start using {InstallerConfig.APP_NAME} from the desktop shortcut "
                                   f"or Start Menu.")
                 
                 self.root.quit()
@@ -448,22 +485,107 @@ if __name__ == "__main__":
         self.create_gui()
         self.root.mainloop()
 
-
-def main():
-    """Main entry point."""
-    # Check if running as admin (recommended for Tesseract installation)
-    try:
-        import ctypes
-        if not ctypes.windll.shell32.IsUserAnAdmin():
-            messagebox.showwarning("Administrator Rights", 
-                                 "For best results, run this installer as Administrator.\n"
-                                 "This ensures Tesseract OCR can be installed system-wide.")
-    except:
-        pass
+# =============================================================================
+# BUILD MODE - EMBED APPLICATION DATA
+# =============================================================================
+def build_installer():
+    """Build mode: embed application data into this file."""
+    print("OCR File Sorter - Self-Contained Installer Builder")
+    print("=" * 50)
     
-    installer = OCRFileSorterInstaller()
-    installer.run()
+    # Get the project root directory (parent of scripts)
+    current_dir = Path(__file__).parent.parent
+    dist_dir = current_dir / "dist"
+    
+    # Check if the main executable exists
+    main_exe = dist_dir / f"{InstallerConfig.APP_NAME}.exe"
+    if not main_exe.exists():
+        print(f"Error: {InstallerConfig.APP_NAME}.exe not found in dist directory.")
+        print("Please run 'build.bat' first to create the executable.")
+        return False
+    
+    print("Creating self-contained installer...")
+    
+    # Read the main executable
+    with open(main_exe, 'rb') as f:
+        exe_data = f.read()
+    
+    # Encode the executable as base64
+    exe_base64 = base64.b64encode(exe_data).decode('ascii')
+    
+    # Read this file
+    with open(__file__, 'r', encoding='utf-8') as f:
+        installer_code = f.read()
+    
+    # Replace the embedded data
+    new_code = installer_code.replace(
+        'EMBEDDED_APP_DATA = None  # This will be replaced with actual base64 data',
+        f'EMBEDDED_APP_DATA = """{exe_base64}"""  # Embedded application data'
+    )
+    
+    # Create the final installer files
+    installer_py = dist_dir / f"{InstallerConfig.APP_NAME.replace(' ', '_')}_Installer.py"
+    with open(installer_py, 'w', encoding='utf-8') as f:
+        f.write(new_code)
+    
+    print(f"Self-contained installer created: {installer_py}")
+    print(f"Installer size: {installer_py.stat().st_size / (1024*1024):.1f} MB")
+    
+    # Build executable version
+    try:
+        import PyInstaller.__main__
+        
+        installer_exe = dist_dir / f"{InstallerConfig.APP_NAME.replace(' ', '_')}_Installer.exe"
+        
+        args = [
+            '--onefile',
+            '--noconsole',
+            f'--name={InstallerConfig.APP_NAME.replace(" ", "_")}_Installer',
+            f'--icon={current_dir}/src/icons/sorterIcon.ico',
+            f'--distpath={dist_dir}',
+            f'--workpath={current_dir}/build/installer',
+            f'--specpath={current_dir}/build/installer',
+            '--hidden-import=tkinter',
+            '--hidden-import=urllib.request', 
+            '--hidden-import=winreg',
+            '--clean',
+            str(installer_py)
+        ]
+        
+        PyInstaller.__main__.run(args)
+        
+        if installer_exe.exists():
+            print(f"Executable installer created: {installer_exe}")
+            print(f"Installer size: {installer_exe.stat().st_size / (1024*1024):.1f} MB")
+            return True
+        else:
+            print("Warning: Executable installer creation failed, but Python installer was created successfully")
+            return True
+            
+    except Exception as e:
+        print(f"Warning: Could not create executable installer: {e}")
+        print("Python installer was created successfully though.")
+        return True
 
+# =============================================================================
+# MAIN ENTRY POINT
+# =============================================================================
+def main():
+    """Main entry point - determines mode based on arguments."""
+    parser = argparse.ArgumentParser(description="OCR File Sorter Installer")
+    parser.add_argument('--build', action='store_true', help='Build mode: embed application data')
+    
+    args = parser.parse_args()
+    
+    if args.build:
+        # Build mode: embed application data
+        success = build_installer()
+        return 0 if success else 1
+    else:
+        # Install mode: run the installer GUI
+        installer = OCRFileSorterInstaller()
+        installer.run()
+        return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

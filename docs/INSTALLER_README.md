@@ -38,7 +38,7 @@ This creates:
 build.bat
 
 # Step 2: Create installer
-python create_installer.py
+python installer.py --build
 ```
 
 ## 📋 Installer Features
@@ -115,17 +115,17 @@ The installer is completely self-contained and requires no additional files or d
 ## 🛠️ Customization
 
 ### Modify Installation Options
-Edit `single_file_installer.py`:
+Edit `installer.py`:
 - Change default installation directory
 - Add/remove installation options
 - Modify GUI appearance
 - Update Tesseract download URL
 
 ### Change Embedded Application
-The `create_installer.py` script automatically embeds the latest built application from `dist/OCR File Sorter.exe`.
+The `installer.py --build` command automatically embeds the latest built application from `dist/OCR File Sorter.exe`.
 
 ### Update Tesseract Version
-Modify the `tesseract_url` in `single_file_installer.py` to point to a newer release:
+Modify the `tesseract_url` in `installer.py` to point to a newer release:
 ```python
 self.tesseract_url = "https://github.com/UB-Mannheim/tesseract/releases/download/v5.x.x/tesseract-ocr-w64-setup-5.x.x.exe"
 ```

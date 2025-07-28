@@ -45,7 +45,7 @@ PDF-Sorter/
 │   ├── build.bat            # Simple build script
 │   ├── build_complete.bat   # Complete build with installer
 │   ├── build_exe.py         # PyInstaller build script
-│   └── create_installer.py  # Installer creation script
+│   └── installer.py         # Unified installer (build & install)
 ├── 📂 config/                # Configuration files
 │   ├── requirements.txt     # Runtime dependencies
 │   ├── requirements-build.txt # Build dependencies
@@ -102,7 +102,7 @@ cd scripts
 python build_exe.py
 
 # 3. Create installer (optional)
-python create_installer.py
+python installer.py --build
 ```
 
 ### Output Files

@@ -38,7 +38,7 @@ build_complete.bat
 build.bat
 
 # 2. Create installer
-python create_installer.py
+python installer.py --build
 ```
 
 ## 🎯 What the Installer Does
@@ -100,7 +100,7 @@ When users run `OCR_File_Sorter_Installer.exe`:
 ## 🎨 Customization Options
 
 ### **Installer Appearance**
-- Modify GUI in `single_file_installer.py`
+- Modify GUI in `installer.py`
 - Update icon in `src/icons/sorterIcon.ico`
 - Change colors, fonts, layout as needed
 
@@ -112,7 +112,7 @@ When users run `OCR_File_Sorter_Installer.exe`:
 
 ### **Build Configuration**
 - PyInstaller options in `build_exe.py`
-- Embedded data handling in `create_installer.py`
+- Embedded data handling in `installer.py`
 - Build automation in `build_complete.bat`
 
 ## 🛡️ Security & Trust
