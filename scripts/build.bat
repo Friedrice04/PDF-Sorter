@@ -1,9 +1,9 @@
 @echo off
-REM Build script for OCR File Sorter
-REM This script builds only the main executable (no installer)
+REM Build script for OCR File Sorter - Main Application
+REM This script builds the main application in directory mode and creates a zip
 
 echo ========================================
-echo Building OCR File Sorter Executable
+echo Building OCR File Sorter Application
 echo ========================================
 echo.
 
@@ -21,10 +21,10 @@ echo Activating virtual environment...
 call "..\\.venv\\Scripts\\activate.bat"
 
 REM Check if PyInstaller is installed
-python -c "import PyInstaller" 2>nul
+"..\\.venv\\Scripts\\python.exe" -c "import PyInstaller" 2>nul
 if errorlevel 1 (
     echo PyInstaller not found. Installing build dependencies...
-    pip install -r "../config/requirements-build.txt"
+    "..\\.venv\\Scripts\\pip.exe" install -r "../config/requirements-build.txt"
     if errorlevel 1 (
         echo Failed to install build dependencies!
         pause
@@ -34,8 +34,9 @@ if errorlevel 1 (
 
 REM Clean previous build files
 echo Cleaning previous build files...
-if exist "..\\build" rmdir /s /q "..\\build"
-if exist "..\\dist" rmdir /s /q "..\\dist"
+if exist "..\\build\\OCR File Sorter" rmdir /s /q "..\\build\\OCR File Sorter"
+if exist "..\\dist\\OCR File Sorter" rmdir /s /q "..\\dist\\OCR File Sorter"
+if exist "..\\dist\\OCR_File_Sorter.zip" del "..\\dist\\OCR_File_Sorter.zip"
 
 REM Create directories
 mkdir "..\\dist" 2>nul
@@ -43,23 +44,33 @@ mkdir "..\\build" 2>nul
 
 REM Run the build script
 echo.
-echo Starting build process...
-python build_exe.py
+echo Building application...
+"..\\.venv\\Scripts\\python.exe" build_exe.py
 
 REM Check if build was successful
-if exist "..\\dist\\OCR File Sorter.exe" (
+if exist "..\\dist\\OCR File Sorter\\OCR File Sorter.exe" (
     echo.
-    echo ========================================
-    echo BUILD SUCCESSFUL!
-    echo ========================================
-    echo Executable created: dist\\OCR File Sorter.exe
+    echo Application build successful!
     echo.
-    echo You can now distribute the exe file along with any required
-    echo system dependencies (like Tesseract OCR if using OCR features^).
-    echo.
-    echo For a complete installer that includes Tesseract OCR, run:
-    echo     build_complete.bat
-    echo.
+    echo Creating application zip...
+    powershell -Command "cd '..\\dist'; Compress-Archive -Path 'OCR File Sorter\\*' -DestinationPath 'OCR_File_Sorter.zip' -Force"
+    
+    if exist "..\\dist\\OCR_File_Sorter.zip" (
+        echo.
+        echo ========================================
+        echo BUILD SUCCESSFUL!
+        echo ========================================
+        echo Application folder: dist\\OCR File Sorter\\
+        echo Application zip: dist\\OCR_File_Sorter.zip
+        echo.
+        echo The zip file is ready for distribution or upload to GitHub releases.
+        echo.
+    ) else (
+        echo.
+        echo Warning: Application built but zip creation failed!
+        echo Application folder: dist\\OCR File Sorter\\
+        echo.
+    )
 ) else (
     echo.
     echo ========================================

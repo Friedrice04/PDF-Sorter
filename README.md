@@ -55,7 +55,7 @@ PDF-Sorter/
 │   └── INSTALLER_README.md  # Installer technical details
 ├── 📂 build/                 # Build artifacts (ignored)
 ├── 📂 dist/                  # Distribution files
-└── build.bat                 # Root-level build script
+└── quick-build.bat           # Quick build convenience script
 ```
 
 ## ✨ Features
@@ -89,7 +89,7 @@ PDF-Sorter/
 ### Quick Build
 ```bash
 # Build everything (application + installer)
-build.bat
+quick-build.bat
 ```
 
 ### Manual Build Steps

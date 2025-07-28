@@ -1,20 +1,11 @@
 @echo off
-REM Installer-only build script for OCR File Sorter
-REM This script creates only the installer (requires main exe to exist)
+REM Build script for OCR File Sorter - Installer Only
+REM This script creates only the download-based installer executable
 
 echo ========================================
-echo OCR File Sorter - Installer Build
+echo Building OCR File Sorter Installer
 echo ========================================
 echo.
-
-REM Check if main application exists
-if not exist "..\\dist\\OCR File Sorter.exe" (
-    echo Error: Main application not found!
-    echo Please build the main application first with: build.bat
-    echo Or run the complete build with: build_complete.bat
-    pause
-    exit /b 1
-)
 
 REM Check if virtual environment exists
 if not exist "..\\.venv\\Scripts\\activate.bat" (
@@ -30,10 +21,10 @@ echo Activating virtual environment...
 call "..\\.venv\\Scripts\\activate.bat"
 
 REM Check if PyInstaller is installed
-python -c "import PyInstaller" 2>nul
+"..\\.venv\\Scripts\\python.exe" -c "import PyInstaller" 2>nul
 if errorlevel 1 (
     echo PyInstaller not found. Installing build dependencies...
-    pip install -r "../config/requirements-build.txt"
+    "..\\.venv\\Scripts\\pip.exe" install -r "../config/requirements-build.txt"
     if errorlevel 1 (
         echo Failed to install build dependencies!
         pause
@@ -41,35 +32,35 @@ if errorlevel 1 (
     )
 )
 
-echo.
-echo ========================================
-echo Creating Single-File Installer
-echo ========================================
-echo.
+REM Clean previous installer build files
+echo Cleaning previous installer files...
+if exist "..\\build\\download_installer" rmdir /s /q "..\\build\\download_installer"
+if exist "..\\dist\\OCR_File_Sorter_Download_Installer.exe" del "..\\dist\\OCR_File_Sorter_Download_Installer.exe"
 
-REM Create the single-file installer
-python installer.py --build
+REM Create directories
+mkdir "..\\dist" 2>nul
+mkdir "..\\build" 2>nul
+
+echo.
+echo Building download-based installer...
+"..\\.venv\\Scripts\\python.exe" build_installer_exe.py
 
 REM Check if installer was created
-if exist "..\\dist\\OCR_File_Sorter_Installer.exe" (
+if exist "..\\dist\\OCR_File_Sorter_Download_Installer.exe" (
     echo.
     echo ========================================
     echo INSTALLER BUILD SUCCESSFUL!
     echo ========================================
     echo.
-    echo 📦 Installer created: dist\\OCR_File_Sorter_Installer.exe
+    echo 📦 Installer created: dist\\OCR_File_Sorter_Download_Installer.exe
     echo.
-    echo 🚀 This installer includes:
-    echo    - OCR File Sorter application
-    echo    - User-specific Tesseract OCR installation
-    echo    - Desktop shortcuts and Start Menu entries
-    echo    - User PATH configuration
+    echo 🌐 This download-based installer:
+    echo    - Downloads the app from GitHub during installation
+    echo    - Much smaller file size ^(approx 11 MB^)
+    echo    - Includes Tesseract OCR installation
+    echo    - Creates desktop shortcuts and Start Menu entries
     echo    - No administrator privileges required
     echo.
-    
-    REM Show file size
-    for %%f in ("..\\dist\\OCR_File_Sorter_Installer.exe") do echo    Installer size: %%~zf bytes
-    
 ) else (
     echo.
     echo ========================================
@@ -79,6 +70,5 @@ if exist "..\\dist\\OCR_File_Sorter_Installer.exe" (
     echo.
 )
 
-echo.
 echo Press any key to exit...
 pause >nul

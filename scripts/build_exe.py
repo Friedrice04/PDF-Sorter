@@ -37,7 +37,7 @@ def build_executable():
     # PyInstaller arguments
     args = [
         '--name=OCR File Sorter',
-        '--onefile',
+        # Removed --onefile for directory mode (faster startup, smaller installer)
         '--noconsole',
         '--distpath=../dist',
         '--workpath=../build',
@@ -48,10 +48,19 @@ def build_executable():
         f'--add-data={current_dir}/src/mappings/example_template;src/mappings/example_template',
         # Add hidden imports that might be needed
         '--hidden-import=tkinter',
-        '--hidden-import=tkinterdnd2',
+        '--hidden-import=tkinterdnd2', 
         '--hidden-import=PIL',
+        '--hidden-import=PIL._tkinter_finder',
         '--hidden-import=fitz',
+        '--hidden-import=pymupdf',
         '--hidden-import=pytesseract',
+        # More selective PyMuPDF inclusion (avoid dev files)
+        '--collect-submodules=fitz',
+        '--collect-submodules=pymupdf',
+        '--copy-metadata=pymupdf',
+        # Only collect essential binaries, exclude development files
+        '--collect-binaries=pymupdf',
+        '--exclude-module=pymupdf.mupdf-devel',
         # Clean build
         '--clean',
     ]
@@ -66,7 +75,7 @@ def build_executable():
         PyInstaller.__main__.run(args)
         print("\n" + "="*50)
         print("Build completed successfully!")
-        print(f"Executable location: {current_dir / 'dist' / 'OCR File Sorter.exe'}")
+        print(f"Executable location: {current_dir / 'dist' / 'OCR File Sorter' / 'OCR File Sorter.exe'}")
         print("="*50)
     except Exception as e:
         print(f"Build failed: {e}")
