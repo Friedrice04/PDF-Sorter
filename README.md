@@ -1,6 +1,6 @@
 # 📄 OCR File Sorter
 
-A powerful, intelligent PDF sorting application that automatically organizes documents based on their content using OCR technology.
+A PDF sorting application that automatically organizes documents based on their content using their text or OCR.
 
 ## 🚀 Quick Start
 
