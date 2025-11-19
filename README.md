@@ -2,7 +2,7 @@
 
 A PDF sorting application that automatically organizes documents based on their content using their text or OCR.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### For Users
 1. Download the installer: `OCR_File_Sorter_Installer.exe`
@@ -26,65 +26,65 @@ pip install -r config/requirements.txt
 python src/main.py
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 PDF-Sorter/
-├── 📂 src/                    # Main application code
+├── src/                    # Main application code
 │   ├── main.py               # Application entry point
 │   ├── gui.py                # User interface
 │   ├── sorter.py             # Core sorting logic
 │   ├── utils.py              # Utility functions
-│   ├── 📂 icons/             # Application icons
-│   ├── 📂 mappings/          # Sorting rule examples
-│   └── 📂 mapping_editor/    # Mapping editor module
-├── 📂 tests/                 # Test suite
-│   ├── 📂 test_runner/       # PDF testing framework
+│   ├── icons/             # Application icons
+│   ├── mappings/          # Sorting rule examples
+│   └── mapping_editor/    # Mapping editor module
+├── tests/                 # Test suite
+│   ├── test_runner/       # PDF testing framework
 │   └── ...                   # Unit and integration tests
-├── 📂 scripts/               # Build and utility scripts
+├── scripts/               # Build and utility scripts
 │   ├── build.bat            # Simple build script
 │   ├── build_complete.bat   # Complete build with installer
 │   ├── build_exe.py         # PyInstaller build script
 │   └── installer.py         # Unified installer (build & install)
-├── 📂 config/                # Configuration files
+├── config/                # Configuration files
 │   ├── requirements.txt     # Runtime dependencies
 │   ├── requirements-build.txt # Build dependencies
 │   └── requirements-dev.txt # Development dependencies
-├── 📂 docs/                  # Documentation
+├── docs/                  # Documentation
 │   ├── DISTRIBUTION_GUIDE.md # Distribution instructions
 │   └── INSTALLER_README.md  # Installer technical details
-├── 📂 build/                 # Build artifacts (ignored)
-├── 📂 dist/                  # Distribution files
+├── build/                 # Build artifacts (ignored)
+├── dist/                  # Distribution files
 └── quick-build.bat           # Quick build convenience script
 ```
 
-## ✨ Features
+## Features
 
-### 🤖 **Intelligent PDF Processing**
+### **Intelligent PDF Processing**
 - **Text Extraction**: Direct PDF text reading with OCR fallback
 - **Pattern Matching**: Flexible phrase-based sorting rules
 - **OCR Support**: Handles scanned documents with Tesseract
 - **Robust Parsing**: Handles OCR quirks and text variations
 
-### 🎯 **Smart Sorting**
+### **Smart Sorting**
 - **Custom Mappings**: Create your own sorting rules
 - **Template System**: Predefined folder structures
 - **Batch Processing**: Sort multiple files at once
 - **File Naming**: Configurable output file naming schemes
 
-### 🖥️ **User-Friendly Interface**
+### **User-Friendly Interface**
 - **Drag & Drop**: Easy file selection
 - **Progress Tracking**: Real-time sorting progress
 - **Visual Feedback**: Clear status updates and error messages
 - **Mapping Editor**: Built-in rule editor with preview
 
-### 🔧 **Professional Features**
+### **Professional Features**
 - **Comprehensive Testing**: PDF testing framework included
 - **Easy Distribution**: Single-file installer with dependencies
 - **Cross-Platform**: Windows focus with portable codebase
 - **Extensible**: Modular architecture for easy enhancement
 
-## 🛠️ Building
+## Building
 
 ### Quick Build
 ```bash
@@ -109,7 +109,7 @@ python installer.py --build
 - `dist/OCR File Sorter.exe` - Main application
 - `dist/OCR_File_Sorter_Installer.exe` - Complete installer
 
-## 🧪 Testing
+## Testing
 
 ### Run Tests
 ```bash
@@ -127,7 +127,7 @@ The included test runner lets you easily test PDF sorting:
 2. Add mapping files to `tests/test_runner/test_mappings/`
 3. Run `run_pdf_tests.py` to see where each PDF would be sorted
 
-## 📋 Requirements
+## Requirements
 
 ### Runtime
 - **OS**: Windows 10/11 (64-bit)
@@ -137,18 +137,18 @@ The included test runner lets you easily test PDF sorting:
 ### Optional
 - **Tesseract OCR**: For scanned PDF support (auto-installed with installer)
 
-## 🎯 Use Cases
+## Use Cases
 
 - **Document Management**: Organize invoices, contracts, reports
 - **Office Automation**: Sort incoming documents by type
 - **Archive Organization**: Clean up document collections
 - **Workflow Integration**: Part of larger document processing pipelines
 
-## 📝 License
+## License
 
 This project is licensed under the terms specified in LICENCE.txt.
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -156,13 +156,13 @@ This project is licensed under the terms specified in LICENCE.txt.
 4. Add tests for new functionality
 5. Submit a pull request
 
-## 📚 Documentation
+## Documentation
 
 - [Distribution Guide](docs/DISTRIBUTION_GUIDE.md) - Complete distribution instructions
 - [Installer README](docs/INSTALLER_README.md) - Installer technical details
 - [Test Runner Guide](tests/test_runner/README.md) - PDF testing framework
 
-## 🆘 Support
+## Support
 
 - Check the documentation in the `docs/` folder
 - Review test examples in `tests/test_runner/`
